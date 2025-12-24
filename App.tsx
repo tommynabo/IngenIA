@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  ShieldCheck, 
-  Lock, 
-  Activity, 
-  UserCircle, 
-  Save, 
-  RotateCcw, 
+import {
+  ShieldCheck,
+  Lock,
+  Activity,
+  UserCircle,
+  Save,
+  RotateCcw,
   LogOut,
   AlertCircle,
   Loader2,
@@ -24,11 +24,11 @@ import { generateComment } from './services/aiService';
 
 // --- Atomic Components ---
 
-const GlassCard: React.FC<{ 
-  title: string; 
-  children: React.ReactNode; 
-  icon: any; 
-  className?: string 
+const GlassCard: React.FC<{
+  title: string;
+  children: React.ReactNode;
+  icon: any;
+  className?: string
 }> = ({ title, children, icon: Icon, className = "" }) => (
   <div className={`glass rounded-3xl p-6 flex flex-col transition-all hover:border-blue-500/30 group ${className}`}>
     <div className="flex items-center gap-4 mb-6">
@@ -43,9 +43,9 @@ const GlassCard: React.FC<{
   </div>
 );
 
-const InputField: React.FC<{ 
-  label: string; 
-  value: string; 
+const InputField: React.FC<{
+  label: string;
+  value: string;
   onChange: (val: string) => void;
   type?: string;
   icon?: any;
@@ -54,8 +54,8 @@ const InputField: React.FC<{
   <div className="space-y-2">
     <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</label>
     <div className="relative group">
-      <input 
-        type={type} 
+      <input
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -68,18 +68,49 @@ const InputField: React.FC<{
 
 // --- Views ---
 
+import { supabase } from './services/supabaseClient';
+
 const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      onLogin();
+    setError(null);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        onLogin();
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+            },
+          },
+        });
+        if (error) throw error;
+        // Auto login or ask to check email? For now assuming auto-login or success message
+        alert('Registro exitoso! Por favor verifica tu email o inicia sesión.');
+        setIsLogin(true);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -92,38 +123,69 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           <h1 className="text-4xl font-extrabold tracking-tighter text-white">
             ingen<span className="text-blue-500">IA</span>
           </h1>
-          <p className="text-white/50 font-medium">Accede a tu cuenta profesional</p>
+          <p className="text-white/50 font-medium">
+            {isLogin ? 'Accede a tu cuenta profesional' : 'Crea tu cuenta profesional'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="glass rounded-[2rem] p-8 space-y-6 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-neon"></div>
-          
-          <InputField 
-            label="Email" 
-            value={email} 
-            onChange={setEmail} 
-            icon={Mail} 
-            placeholder="mary@whitestars.io" 
+
+          {!isLogin && (
+            <InputField
+              label="Nombre Completo"
+              value={fullName}
+              onChange={setFullName}
+              icon={UserCircle}
+              placeholder="Juan Pérez"
+            />
+          )}
+
+          <InputField
+            label="Email"
+            value={email}
+            onChange={setEmail}
+            icon={Mail}
+            placeholder="mary@whitestars.io"
           />
-          <InputField 
-            label="Contraseña" 
-            value={password} 
-            onChange={setPassword} 
-            type="password" 
-            icon={Lock} 
-            placeholder="••••••••" 
+          <InputField
+            label="Contraseña"
+            value={password}
+            onChange={setPassword}
+            type="password"
+            icon={Lock}
+            placeholder="••••••••"
           />
 
-          <button 
+          {error && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={14} />
+              {error}
+            </div>
+          )}
+
+          <button
             type="submit"
             disabled={loading}
             className="w-full py-4 bg-gradient-neon text-white rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : "Iniciar Sesión"}
+            {loading ? <Loader2 className="animate-spin" size={20} /> : (isLogin ? "Iniciar Sesión" : "Registrarse")}
           </button>
 
-          <div className="pt-4 text-center">
-            <a href="#" className="text-xs text-white/30 hover:text-white/60 transition-colors">¿Olvidaste tu contraseña?</a>
+          <div className="pt-4 text-center space-y-3">
+            <button
+              type="button"
+              onClick={() => { setIsLogin(!isLogin); setError(null); }}
+              className="text-xs text-white/50 hover:text-white transition-colors font-medium"
+            >
+              {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia Sesión"}
+            </button>
+
+            {isLogin && (
+              <div>
+                <a href="#" className="text-[10px] text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest">¿Olvidaste tu contraseña?</a>
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -162,7 +224,7 @@ const Dashboard: React.FC = () => {
       if (response.success && response.comment) {
         setLastGenerated(response.comment);
         setUsedToday(prev => prev + 1);
-        
+
         const newRecord: GenerationHistoryRecord = {
           id: Math.random().toString(36).substr(2, 9),
           timestamp: new Date(),
@@ -192,15 +254,15 @@ const Dashboard: React.FC = () => {
               ingen<span className="text-blue-500">IA</span>
             </div>
             <div className="hidden md:flex gap-6 text-sm font-semibold text-white/50">
-              <button 
-                onClick={() => setView('dashboard')} 
+              <button
+                onClick={() => setView('dashboard')}
                 className={`transition-colors flex items-center gap-2 ${view === 'dashboard' ? 'text-white' : 'hover:text-white'}`}
               >
                 <LayoutDashboard size={18} />
                 Panel
               </button>
-              <button 
-                onClick={() => setView('profile')} 
+              <button
+                onClick={() => setView('profile')}
                 className={`transition-colors flex items-center gap-2 ${view === 'profile' ? 'text-white' : 'hover:text-white'}`}
               >
                 <UserCircle size={18} />
@@ -208,12 +270,12 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
-             <div 
+            <div
               onClick={() => setView('profile')}
               className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all"
-             >
+            >
               <div className="w-8 h-8 rounded-full bg-gradient-neon flex items-center justify-center overflow-hidden">
                 <img src="https://picsum.photos/seed/mary/64/64" alt="User" />
               </div>
@@ -234,7 +296,7 @@ const Dashboard: React.FC = () => {
                 <h1 className="text-5xl font-extrabold tracking-tight">Bienvenido de nuevo.</h1>
                 <p className="text-white/40 text-lg font-medium">Tu motor de ingenio está listo para trabajar.</p>
               </div>
-              <button 
+              <button
                 onClick={handleTestComment}
                 disabled={isGenerating}
                 className="group flex items-center gap-3 px-8 py-4 bg-gradient-neon rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
@@ -262,20 +324,19 @@ const Dashboard: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              
+
               {/* Tarjeta 1: Control de Riesgo */}
               <GlassCard title="Control de Riesgo" icon={Activity}>
                 <div className="space-y-8">
                   <div className="grid grid-cols-3 gap-2">
                     {[RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH].map(level => (
-                      <button 
+                      <button
                         key={level}
                         onClick={() => setRiskLevel(level)}
-                        className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${
-                          riskLevel === level 
-                            ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20' 
+                        className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${riskLevel === level
+                            ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
                             : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
-                        }`}
+                          }`}
                       >
                         {level}
                       </button>
@@ -288,12 +349,12 @@ const Dashboard: React.FC = () => {
                       <span className="text-3xl font-black text-white">{usedToday} <span className="text-white/20 text-sm">/ {currentLimit}</span></span>
                     </div>
                     <div className="h-4 w-full bg-white/5 rounded-full p-1 overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-neon rounded-full transition-all duration-1000 ease-out"
                         style={{ width: `${progressPercentage}%` }}
                       ></div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setUsedToday(0)}
                       className="text-[10px] font-bold text-white/20 hover:text-white/50 transition-colors flex items-center gap-2 mx-auto"
                     >
@@ -307,7 +368,7 @@ const Dashboard: React.FC = () => {
               <GlassCard title="Personalidad IA" icon={UserCircle}>
                 <div className="flex flex-col h-full space-y-4">
                   <p className="text-sm text-white/40 font-medium">Define cómo debe sonar tu voz digital.</p>
-                  <textarea 
+                  <textarea
                     value={personality}
                     onChange={(e) => setPersonality(e.target.value)}
                     className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder:text-white/10"
@@ -333,7 +394,7 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <InputField label="Clave API" value="ING-8293-XP92-2024" onChange={() => {}} icon={Lock} />
+                    <InputField label="Clave API" value="ING-8293-XP92-2024" onChange={() => { }} icon={Lock} />
                     <button className="w-full py-3 text-red-400/50 hover:text-red-400 text-[10px] font-bold uppercase tracking-widest transition-colors">
                       DESVINCULAR DISPOSITIVO
                     </button>
@@ -345,7 +406,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="flex items-center gap-4 mb-8">
-              <button 
+              <button
                 onClick={() => setView('dashboard')}
                 className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
               >
@@ -400,14 +461,14 @@ const Dashboard: React.FC = () => {
                       </div>
                       <h3 className="text-xl font-bold">Historial de Generaciones</h3>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setHistory([])}
                       className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
                     >
                       LIMPIAR TODO
                     </button>
                   </div>
-                  
+
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {history.length === 0 ? (
                       <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
