@@ -27,10 +27,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const openaiApiKey = process.env.OPENAI_API_KEY;
 
-        if (!supabaseUrl || !supabaseServiceKey) {
-            console.error("Missing Supabase Credentials");
-            return res.status(500).json({ error: 'Server Configuration Error: Missing Supabase Credentials' });
+        if (!supabaseUrl) {
+            console.error("Missing NEXT_PUBLIC_SUPABASE_URL");
+            return res.status(500).json({ error: 'Server Config Error: Missing NEXT_PUBLIC_SUPABASE_URL' });
         }
+
+        if (!supabaseServiceKey) {
+            console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+            return res.status(500).json({ error: 'Server Config Error: Missing SUPABASE_SERVICE_ROLE_KEY' });
+        }
+
 
         if (!openaiApiKey) {
             console.error("Missing OpenAI API Key");
