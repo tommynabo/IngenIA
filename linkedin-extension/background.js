@@ -18,7 +18,6 @@ async function handleApiCall(request) {
             throw new Error("Falta la Clave de Licencia.");
         }
 
-        // For "test_connection", we might just want to ping or send a dummy prompt
         const finalPrompt = prompt || "Ping test connection";
 
         const response = await fetch(API_URL, {
@@ -32,7 +31,17 @@ async function handleApiCall(request) {
             })
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get("content-type");
+        let data;
+
+        // Check if JSON
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            data = await response.json();
+        } else {
+            // Probably an HTML error page or plain text
+            const text = await response.text();
+            throw new Error(`Server returned non-JSON error: ${response.status} ${response.statusText}. Content: ${text.substring(0, 100)}...`);
+        }
 
         if (!response.ok) {
             throw new Error(data.error || `Server Error: ${response.status}`);
