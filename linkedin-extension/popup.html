@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IngenIA</title>
+    <style>
+        body {
+            width: 320px;
+            padding: 20px;
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #0f172a;
+            color: white;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 20px 0;
+        }
+
+        .blue {
+            color: #3b82f6;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: white;
+            margin-bottom: 16px;
+            font-family: monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .secondary {
+            background: transparent;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 12px;
+            min-height: 1.2em;
+            line-height: 1.4;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ingen<span class="blue">IA</span></h1>
+
+    <label for="licenseKey">Clave de Licencia</label>
+    <input type="text" id="licenseKey" placeholder="Pega tu clave aquí...">
+
+    <div class="btn-group">
+        <button id="saveBtn" class="primary">Guardar</button>
+        <button id="testBtn" class="secondary">Probar Conexión</button>
+    </div>
+
+    <div id="status"></div>
+    <script src="popup.js"></script>
+</body>
+
+</html>

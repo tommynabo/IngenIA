@@ -1,17 +1,21 @@
 {
     "manifest_version": 3,
-    "name": "IngenIA",
-    "version": "2.0",
-    "description": "Asistente de IA para LinkedIn. Genera comentarios y resúmenes inteligentes.",
+    "name": "IngenIA - Smart Assistant",
+    "version": "3.0",
+    "description": "Asistente de IA para LinkedIn. Genera comentarios y resúmenes mediante Service Worker.",
     "permissions": [
+        "storage",
         "activeTab",
         "scripting",
-        "storage"
+        "background"
     ],
     "host_permissions": [
         "https://www.linkedin.com/*",
         "https://ingen-ia.vercel.app/*"
     ],
+    "background": {
+        "service_worker": "background.js"
+    },
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
