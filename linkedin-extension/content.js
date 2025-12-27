@@ -2,6 +2,9 @@
 const OBSERVER_TARGET = document.body;
 // Wrapper typically used by LinkedIn feed updates
 const POST_SELECTOR = '.feed-shared-update-v2';
+// New target: The bar with "100 likes - 20 comments"
+const DETAILS_SELECTOR = '.social-details-social-counts, .feed-shared-social-counts';
+// Fallback: Action bar if counts are missing (e.g. 0 likes/comments)
 const ACTION_BAR_SELECTOR = '.feed-shared-social-action-bar';
 const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view';
 
@@ -10,7 +13,6 @@ const INJECTED_ATTR = 'data-ingenia-injected';
 
 // --- Observer ---
 const observer = new MutationObserver((mutations) => {
-    // Check if nodes added, then scan
     if (mutations.some(m => m.addedNodes.length > 0)) {
         scanAndInject();
     }
@@ -26,9 +28,19 @@ function scanAndInject() {
     posts.forEach(post => {
         if (post.hasAttribute(INJECTED_ATTR)) return;
 
-        const actionBar = post.querySelector(ACTION_BAR_SELECTOR);
-        if (actionBar) {
-            injectButtons(actionBar, post);
+        // 1. Try to find the stats bar (counts)
+        let targetContainer = post.querySelector(DETAILS_SELECTOR);
+        let injectMethod = 'append'; // Default: add to end
+
+        // 2. If no stats bar (empty post), try action bar as fallback
+        if (!targetContainer) {
+            targetContainer = post.querySelector(ACTION_BAR_SELECTOR);
+            // If fallback actions bar, maybe prepend to separate from main actions?
+            // Or just append. Let's append but style will float it.
+        }
+
+        if (targetContainer) {
+            injectButtons(targetContainer, post);
             post.setAttribute(INJECTED_ATTR, 'true');
         }
     });
@@ -36,7 +48,7 @@ function scanAndInject() {
 
 function injectButtons(container, postElement) {
     const btnContainer = document.createElement('div');
-    btnContainer.className = 'ingenia-btn-container';
+    btnContainer.className = 'ingenia-btn-container-small';
 
     // Summarize
     const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));

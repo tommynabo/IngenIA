@@ -1,54 +1,52 @@
-/* ingenia-btn-container: Holds our two buttons */
-.ingenia-btn-container {
-    display: flex;
-    gap: 8px;
-    margin-left: auto !important;
-    /* Push to the right end of action bar */
-    padding-right: 8px;
+/* ingenia-btn-container-small: Fits in the stats bar */
+.ingenia-btn-container-small {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+    /* Push to right if in flex container */
+    padding: 0 8px;
     align-items: center;
 }
 
-/* Base button style matching LinkedIn Artdeco */
+/* Filled, small button style */
 .ingenia-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-sizing: border-box;
-    padding: 6px 12px;
-    border-radius: 16px;
-    /* Rounded pill shape */
-    background-color: transparent;
-    color: #666;
-    /* LinkedIn grey text */
-    font-size: 14px;
-    font-weight: 600;
-    font-family: inherit;
-    border: 1px solid transparent;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background-color: #0a66c2;
+    /* LinkedIn Brand Blue */
+    color: white !important;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
     cursor: pointer;
-    transition: background-color 0.167s;
-    line-height: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s, background-color 0.2s;
+    line-height: 1.2;
 }
 
 /* Hover effect */
 .ingenia-btn:hover {
-    background-color: rgba(0, 0, 0, 0.08);
-    /* Light grey hover */
-    color: rgba(0, 0, 0, 0.9);
+    background-color: #004182;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
 }
 
 /* Icon style */
 .ingenia-icon {
-    font-size: 16px;
-    margin-right: 6px;
+    font-size: 12px;
+    margin-right: 4px;
 }
 
-/* Loading Spinner (Small) */
+/* Loading Spinner (White for filled btn) */
 .ingenia-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-top: 2px solid #0a66c2;
-    /* LinkedIn Blue */
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
     border-radius: 50%;
     animation: ingenia-spin 0.8s linear infinite;
 }
