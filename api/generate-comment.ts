@@ -23,13 +23,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // --- Safe Initialization ---
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        // Fallback to VITE_ prefix if NEXT_PUBLIC_ is missing (common in Vite projects)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const openaiApiKey = process.env.OPENAI_API_KEY;
 
         if (!supabaseUrl) {
-            console.error("Missing NEXT_PUBLIC_SUPABASE_URL");
-            return res.status(500).json({ error: 'Server Config Error: Missing NEXT_PUBLIC_SUPABASE_URL' });
+            console.error("Missing Supabase URL (NEXT_PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL)");
+            return res.status(500).json({ error: 'Server Config Error: Missing Supabase URL' });
         }
 
         if (!supabaseServiceKey) {
