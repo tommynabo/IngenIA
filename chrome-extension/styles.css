@@ -1,49 +1,50 @@
+/* Botones Inyectados en LinkedIn */
 .ingenia-btn-container {
   display: inline-flex;
-  gap: 6px;
-  margin-left: 8px;
-  /* Reduce margin */
+  gap: 8px;
+  /* Push to the right or add ample margin */
+  margin-left: auto;
+  padding-left: 12px;
   align-items: center;
+  height: 100%;
+  /* Match action bar height */
 }
 
 .ingenia-btn {
   background-color: transparent;
   border: 1px solid #3b82f6;
-  border-radius: 16px;
+  /* Blue border */
+  border-radius: 9999px;
+  /* Pill shape */
   color: #3b82f6;
-  padding: 4px 10px;
-  /* Smaller padding */
-  font-family: inherit;
-  /* Use LinkedIn font */
-  font-size: 1.2rem;
-  /* Smaller font (~12px) */
+  padding: 6px 14px;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  /* Standard readable size */
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   transition: all 0.2s ease;
-  min-height: 28px;
-  /* Smaller height */
-  line-height: 16px;
+  min-height: 32px;
+  line-height: 20px;
   white-space: nowrap;
-  /* Prevent breaking */
 }
 
 .ingenia-btn:hover {
   background-color: rgba(59, 130, 246, 0.1);
-  box-shadow: inset 0 0 0 1px #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 .ingenia-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  border-color: #ccc;
-  color: #666;
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .ingenia-icon {
   font-size: 16px;
+  line-height: 1;
 }
 
 /* Spinner Animation */
