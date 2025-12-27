@@ -4,118 +4,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración IngenIA</title>
+    <title>IngenIA Config</title>
     <style>
         body {
-            width: 320px;
-            padding: 20px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #020205;
-            color: #fff;
+            width: 300px;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            /* Slate 900 */
+            color: #f8fafc;
         }
 
-        h2 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #fff;
+        h1 {
+            font-size: 16px;
+            margin: 0 0 16px 0;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .logo-text {
-            font-weight: 800;
-        }
-
-        .logo-highlight {
+        .highlight {
             color: #3b82f6;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-size: 12px;
-            font-weight: bold;
-            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            font-weight: 600;
         }
 
         input {
             width: 100%;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            color: #fff;
-            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background-color: #1e293b;
+            color: white;
+            font-family: monospace;
             box-sizing: border-box;
+            margin-bottom: 4px;
         }
 
         input:focus {
             outline: none;
             border-color: #3b82f6;
-            background-color: rgba(255, 255, 255, 0.1);
+            ring: 1px solid #3b82f6;
+        }
+
+        .hint {
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 16px;
         }
 
         button {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
+            padding: 10px;
+            background: #3b82f6;
             border: none;
-            border-radius: 8px;
-            font-weight: bold;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: background 0.2s;
         }
 
         button:hover {
-            opacity: 0.9;
+            background: #2563eb;
         }
 
-        .status {
-            margin-top: 10px;
-            font-size: 12px;
+        #status {
+            margin-top: 12px;
+            font-size: 11px;
             text-align: center;
-            min-height: 20px;
+            min-height: 14px;
         }
 
-        .status.success {
+        .success {
             color: #4ade80;
-        }
-
-        .status.error {
-            color: #f87171;
         }
     </style>
 </head>
 
 <body>
-    <h2>
-        <span class="logo-text">ingen<span class="logo-highlight">IA</span></span>
-    </h2>
+    <h1>ingen<span class="highlight">IA</span></h1>
 
-    <div class="form-group">
-        <label for="apiUrl">API URL</label>
-        <input type="text" id="apiUrl" placeholder="https://..."
-            value="https://ingenia-app.vercel.app/api/generate-comment">
-    </div>
-
-    <div class="form-group">
-        <label for="licenseKey">Clave de Licencia (UUID)</label>
-        <input type="text" id="licenseKey" placeholder="Pega aquí tu clave...">
-        <div style="margin-top: 5px; font-size: 10px; color: rgba(255,255,255,0.4);">
-            * Copia tu clave desde el Dashboard de IngenIA.
-        </div>
-    </div>
+    <label for="licenseKey">Clave de Licencia</label>
+    <input type="text" id="licenseKey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+    <div class="hint">Copia la clave desde tu Dashboard.</div>
 
     <button id="saveBtn">Guardar Configuración</button>
-    <div id="status" class="status"></div>
+    <div id="status"></div>
 
     <script src="popup.js"></script>
 </body>

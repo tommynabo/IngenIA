@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "IngenIA - Asistente de LinkedIn",
-    "version": "1.0",
-    "description": "Genera comentarios inteligentes y resúmenes para LinkedIn con un solo clic.",
+    "name": "IngenIA",
+    "version": "2.0",
+    "description": "Asistente de IA para LinkedIn. Genera comentarios y resúmenes inteligentes.",
     "permissions": [
         "activeTab",
         "scripting",
@@ -10,8 +10,7 @@
     ],
     "host_permissions": [
         "https://www.linkedin.com/*",
-        "https://*.vercel.app/*",
-        "http://localhost:3000/*"
+        "https://ingen-ia.vercel.app/*"
     ],
     "action": {
         "default_popup": "popup.html",

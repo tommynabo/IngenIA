@@ -1,42 +1,36 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const apiUrlInput = document.getElementById('apiUrl');
-    const licenseKeyInput = document.getElementById('licenseKey');
+    const keyInput = document.getElementById('licenseKey');
     const saveBtn = document.getElementById('saveBtn');
     const statusDiv = document.getElementById('status');
 
-    // Load saved settings
-    chrome.storage.sync.get(['apiUrl', 'licenseKey'], (items) => {
-        if (items.apiUrl) apiUrlInput.value = items.apiUrl;
-        if (items.licenseKey) licenseKeyInput.value = items.licenseKey;
+    // Load saved key
+    chrome.storage.sync.get(['licenseKey'], (items) => {
+        if (items.licenseKey) {
+            keyInput.value = items.licenseKey;
+        }
     });
 
+    // Save key
     saveBtn.addEventListener('click', () => {
-        const apiUrl = apiUrlInput.value.trim();
-        const licenseKey = licenseKeyInput.value.trim();
+        const key = keyInput.value.trim();
 
-        if (!apiUrl) {
-            showStatus('La URL de la API es requerida.', 'error');
+        if (!key) {
+            showStatus('Por favor, introduce una clave.', false);
             return;
         }
 
-        if (!licenseKey) {
-            showStatus('La CLAVE es requerida.', 'error');
-            return;
-        }
-
-        chrome.storage.sync.set({
-            apiUrl: apiUrl,
-            licenseKey: licenseKey
-        }, () => {
-            showStatus('Guardado. ¡Listo para usar!', 'success');
-            setTimeout(() => {
-                statusDiv.textContent = '';
-            }, 2000);
+        chrome.storage.sync.set({ licenseKey: key }, () => {
+            showStatus('¡Guardado correctamente!', true);
+            // Optional: Notify content script to update immediately if needed via message passing, 
+            // but our content script re-reads storage on every click anyway.
         });
     });
 
-    function showStatus(msg, type) {
+    function showStatus(msg, isSuccess) {
         statusDiv.textContent = msg;
-        statusDiv.className = 'status ' + type;
+        statusDiv.className = isSuccess ? 'success' : '';
+        setTimeout(() => {
+            statusDiv.textContent = '';
+        }, 2000);
     }
 });

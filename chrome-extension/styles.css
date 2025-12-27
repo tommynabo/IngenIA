@@ -1,66 +1,71 @@
-/* Container for buttons within the action bar */
+/* ingenia-btn-container: Holds our two buttons */
 .ingenia-btn-container {
-  display: flex !important;
+  display: flex;
   gap: 8px;
   margin-left: auto !important;
-  /* Forces it to the right side if flex container */
-  padding-left: 12px;
+  /* Push to the right end of action bar */
+  padding-right: 8px;
   align-items: center;
-  height: 48px;
-  /* Approximate height of LinkedIn action bar */
 }
 
-/* Specific button styles */
+/* Base button style matching LinkedIn Artdeco */
 .ingenia-btn {
-  background-color: transparent !important;
-  border: 1px solid #3b82f6 !important;
-  border-radius: 9999px !important;
-  color: #3b82f6 !important;
-  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  padding: 4px 12px !important;
-  margin: 0 !important;
-  width: auto !important;
-  height: 32px !important;
-  /* Fixed height */
-  line-height: normal !important;
-  box-shadow: none !important;
-  cursor: pointer !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px !important;
-  transition: all 0.2s ease !important;
-  white-space: nowrap !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 6px 12px;
+  border-radius: 16px;
+  /* Rounded pill shape */
+  background-color: transparent;
+  color: #666;
+  /* LinkedIn grey text */
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.167s;
+  line-height: 20px;
 }
 
+/* Hover effect */
 .ingenia-btn:hover {
-  background-color: rgba(59, 130, 246, 0.1) !important;
-  box-shadow: inset 0 0 0 1px #3b82f6 !important;
+  background-color: rgba(0, 0, 0, 0.08);
+  /* Light grey hover */
+  color: rgba(0, 0, 0, 0.9);
 }
 
-.ingenia-btn:active {
-  transform: scale(0.95);
-}
-
+/* Icon style */
 .ingenia-icon {
-  font-size: 16px !important;
-  line-height: 1 !important;
-  margin: 0 !important;
+  font-size: 16px;
+  margin-right: 6px;
 }
 
+/* Loading Spinner */
 .ingenia-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top: 2px solid #0a66c2;
+  /* LinkedIn Blue */
   border-radius: 50%;
-  border-top-color: #3b82f6;
-  animation: ingeniaspin 1s ease-in-out infinite;
+  animation: ingenia-spin 0.8s linear infinite;
 }
 
-@keyframes ingeniaspin {
+@keyframes ingenia-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Dark mode adjustments (rough support) */
+@media (prefers-color-scheme: dark) {
+  .ingenia-btn {
+    color: #e8e6df;
+  }
+
+  .ingenia-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 }
