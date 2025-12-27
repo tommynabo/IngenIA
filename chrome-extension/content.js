@@ -1,17 +1,21 @@
 // --- Configuration ---
 const OBSERVER_TARGET = document.body;
+// 'feed-shared-update-v2' is the main wrapper for a post
+// 'occludable-update' is another common wrapper.
 const POST_SELECTOR = '.feed-shared-update-v2';
-const ACTION_BAR_SELECTOR = '.feed-shared-update-v2__control-menu-container, .feed-shared-social-action-bar, .feed-shared-update-v2__action-bar';
-const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text';
+
+const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view';
 
 // Variables
 let apiUrl = '';
-let email = '';
+let licenseKey = '';
 
 // Load settings
-chrome.storage.sync.get(['apiUrl', 'email'], (items) => {
+chrome.storage.sync.get(['apiUrl', 'licenseKey'], (items) => {
     apiUrl = items.apiUrl || 'https://ingenia-app.vercel.app/api/generate-comment';
-    email = items.email || '';
+    licenseKey = items.licenseKey || '';
+
+    if (!licenseKey) console.warn("IngenIA: No License Key found.");
 });
 
 // --- Observer ---
@@ -36,9 +40,16 @@ function checkForPosts() {
     posts.forEach(post => {
         if (post.dataset.ingeniaInjected) return;
 
-        // Find action bar to inject next to
-        // Trying slightly different selector to place it better
-        const actionBar = post.querySelector('.feed-shared-social-action-bar');
+        // Attempt to find the specific action bar (Like, Comment, Share, Send)
+        // Selector: .feed-shared-social-action-bar
+        let actionBar = post.querySelector('.feed-shared-social-action-bar');
+
+        // Some posts might have different structure.
+        if (!actionBar) {
+            // Fallback for detail view or different layouts
+            actionBar = post.querySelector('.feed-shared-update-v2__action-bar');
+        }
+
         if (!actionBar) return;
 
         injectButtons(actionBar, post);
@@ -47,6 +58,7 @@ function checkForPosts() {
 }
 
 function injectButtons(container, postElement) {
+    // Create a container for OUR buttons
     const btnContainer = document.createElement('div');
     btnContainer.className = 'ingenia-btn-container';
 
@@ -54,25 +66,38 @@ function injectButtons(container, postElement) {
     const btnSummarize = document.createElement('button');
     btnSummarize.className = 'ingenia-btn';
     btnSummarize.innerHTML = '<span class="ingenia-icon">📝</span> Resumir';
-    btnSummarize.onclick = () => handleGenerate(postElement, 'summarize', btnSummarize);
+    btnSummarize.onclick = (e) => {
+        e.stopPropagation(); // Prevent opening post
+        handleGenerate(postElement, 'summarize', btnSummarize);
+    };
 
     // Btn 2
     const btnComment = document.createElement('button');
     btnComment.className = 'ingenia-btn';
     btnComment.innerHTML = '<span class="ingenia-icon">⚡️</span> Comentar';
-    btnComment.onclick = () => handleGenerate(postElement, 'comment', btnComment);
+    btnComment.onclick = (e) => {
+        e.stopPropagation();
+        handleGenerate(postElement, 'comment', btnComment);
+    };
 
     btnContainer.appendChild(btnSummarize);
     btnContainer.appendChild(btnComment);
 
-    // Append after the container to not break flex layout of action bar
+    // To avoid "messy" overlap, we append it to the END of the action bar.
+    // Our CSS will handle exact positioning/margins.
     container.appendChild(btnContainer);
 }
 
 async function handleGenerate(postElement, type, button) {
-    if (!email) {
-        // CORRECT ERROR MESSAGE
-        alert('IngenIA: Por favor configura tu EMAIL en el popup de la extensión.');
+    // Force reload settings just in case
+    await new Promise(r => chrome.storage.sync.get(['licenseKey', 'apiUrl'], (items) => {
+        licenseKey = items.licenseKey || '';
+        apiUrl = items.apiUrl || apiUrl;
+        r();
+    }));
+
+    if (!licenseKey) {
+        alert('IngenIA: ¡Falta tu Clave!\n\nVe al Dashboard de IngenIA, copia tu "Clave de Licencia" y pégala en las opciones de la extensión.');
         return;
     }
 
@@ -80,7 +105,7 @@ async function handleGenerate(postElement, type, button) {
     const postText = textEl ? textEl.innerText : '';
 
     if (!postText) {
-        alert('IngenIA: No pude encontrar el texto del post.');
+        alert('IngenIA: No pude encontrar el texto del post. (Intenta abrir el post completo)');
         return;
     }
 
@@ -89,14 +114,14 @@ async function handleGenerate(postElement, type, button) {
     button.disabled = true;
 
     try {
-        const promptPrefix = type === 'summarize' ? 'Summarize this post for me: ' : '';
+        const promptPrefix = type === 'summarize' ? 'Resumen breve de este post: ' : '';
         const finalPrompt = promptPrefix + postText;
 
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: email, // Sending Email
+                licenseKey: licenseKey, // Using License Key again
                 prompt: finalPrompt
             })
         });
@@ -141,7 +166,7 @@ function insertComment(postElement, text) {
         } else {
             console.error("IngenIA: Could not find comment editor.");
             navigator.clipboard.writeText(text).then(() => {
-                alert('Comentario copiado al portapapeles.');
+                alert('Comentario copiado. (Pégalo manualmente)');
             });
         }
     }, 500);

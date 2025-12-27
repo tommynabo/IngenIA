@@ -1,53 +1,55 @@
-/* Botones Inyectados en LinkedIn */
+/* Container for buttons within the action bar */
 .ingenia-btn-container {
-  display: inline-flex;
+  display: flex !important;
   gap: 8px;
-  /* Push to the right or add ample margin */
-  margin-left: auto;
+  margin-left: auto !important;
+  /* Forces it to the right side if flex container */
   padding-left: 12px;
   align-items: center;
-  height: 100%;
-  /* Match action bar height */
+  height: 48px;
+  /* Approximate height of LinkedIn action bar */
 }
 
+/* Specific button styles */
 .ingenia-btn {
-  background-color: transparent;
-  border: 1px solid #3b82f6;
-  /* Blue border */
-  border-radius: 9999px;
-  /* Pill shape */
-  color: #3b82f6;
-  padding: 6px 14px;
-  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  /* Standard readable size */
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-  min-height: 32px;
-  line-height: 20px;
-  white-space: nowrap;
+  background-color: transparent !important;
+  border: 1px solid #3b82f6 !important;
+  border-radius: 9999px !important;
+  color: #3b82f6 !important;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 4px 12px !important;
+  margin: 0 !important;
+  width: auto !important;
+  height: 32px !important;
+  /* Fixed height */
+  line-height: normal !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
 }
 
 .ingenia-btn:hover {
-  background-color: rgba(59, 130, 246, 0.1);
-  box-shadow: 0 0 0 1px #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  box-shadow: inset 0 0 0 1px #3b82f6 !important;
 }
 
-.ingenia-btn:disabled {
-  opacity: 0.5;
-  cursor: wait;
+.ingenia-btn:active {
+  transform: scale(0.95);
 }
 
 .ingenia-icon {
-  font-size: 16px;
-  line-height: 1;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
 }
 
-/* Spinner Animation */
 .ingenia-spinner {
   width: 14px;
   height: 14px;

@@ -208,6 +208,7 @@ const Dashboard: React.FC = () => {
   const [currentIp, setCurrentIp] = useState<string>('Detectando...');
   const [totalUsage, setTotalUsage] = useState(0);
   const [memberSince, setMemberSince] = useState('Reciente');
+  const [licenseKey, setLicenseKey] = useState<string>('');
 
   const currentLimit = RISK_LIMITS[riskLevel];
   const progressPercentage = Math.min((usedToday / currentLimit) * 100, 100);
@@ -477,21 +478,38 @@ const Dashboard: React.FC = () => {
               </GlassCard>
 
               {/* Tarjeta 3: Seguridad Renovada */}
-              <GlassCard title="Dispositivo" icon={ShieldCheck}>
+              <GlassCard title="Conexión Extension" icon={ShieldCheck}>
                 <div className="space-y-6">
                   <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Estado de Conexión</span>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> SEGURA
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">TU CLAVE DE LICENCIA</span>
+                      <div className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">
+                        PARA LA EXTENSIÓN
                       </div>
                     </div>
-                    <p className="text-xs text-white/60">Vinculado a IP: <strong>{currentIp}</strong></p>
+                    {/* Display License Key */}
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-black/20 p-2 rounded-lg text-xs font-mono text-white/80 break-all select-all">
+                        {licenseKey || "Cargando..."}
+                      </code>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(licenseKey)}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
+                        title="Copiar"
+                      >
+                        <Save size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                    <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Email Registrado</p>
-                    <p className="text-sm font-bold text-white/80 truncate">{session?.user?.email}</p>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-[10px] text-white/30 uppercase tracking-widest">Estado</p>
+                      <div className="flex items-center gap-1.5 text-green-400 text-[10px] font-bold">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> ACTIVO
+                      </div>
+                    </div>
+                    <p className="text-xs text-white/60">IP Vinculada: <strong>{currentIp}</strong></p>
                   </div>
                 </div>
               </GlassCard>

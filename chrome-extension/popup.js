@@ -1,34 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
     const apiUrlInput = document.getElementById('apiUrl');
-    const emailInput = document.getElementById('email');
+    const licenseKeyInput = document.getElementById('licenseKey');
     const saveBtn = document.getElementById('saveBtn');
     const statusDiv = document.getElementById('status');
 
     // Load saved settings
-    chrome.storage.sync.get(['apiUrl', 'email'], (items) => {
+    chrome.storage.sync.get(['apiUrl', 'licenseKey'], (items) => {
         if (items.apiUrl) apiUrlInput.value = items.apiUrl;
-        if (items.email) emailInput.value = items.email;
+        if (items.licenseKey) licenseKeyInput.value = items.licenseKey;
     });
 
     saveBtn.addEventListener('click', () => {
         const apiUrl = apiUrlInput.value.trim();
-        const email = emailInput.value.trim();
+        const licenseKey = licenseKeyInput.value.trim();
 
         if (!apiUrl) {
             showStatus('La URL de la API es requerida.', 'error');
             return;
         }
 
-        if (!email) {
-            showStatus('El Email es requerido.', 'error');
+        if (!licenseKey) {
+            showStatus('La CLAVE es requerida.', 'error');
             return;
         }
 
         chrome.storage.sync.set({
             apiUrl: apiUrl,
-            email: email
+            licenseKey: licenseKey
         }, () => {
-            showStatus('Configuración guardada exitosamente.', 'success');
+            showStatus('Guardado. ¡Listo para usar!', 'success');
             setTimeout(() => {
                 statusDiv.textContent = '';
             }, 2000);
