@@ -17,7 +17,8 @@ import {
   LayoutDashboard,
   Settings,
   Mail,
-  Fingerprint
+  Fingerprint,
+  Download
 } from 'lucide-react';
 import { RiskLevel, RISK_LIMITS, GenerationHistoryRecord } from './types';
 import { generateComment } from './services/aiService';
@@ -377,6 +378,13 @@ const Dashboard: React.FC = () => {
               >
                 <UserCircle size={18} />
                 Perfil
+              </button>
+              <button
+                onClick={() => window.location.href = '/install.html'}
+                className="transition-colors flex items-center gap-2 hover:text-white"
+              >
+                <Download size={18} />
+                Instalación
               </button>
             </div>
           </div>

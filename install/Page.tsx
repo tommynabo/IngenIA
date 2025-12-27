@@ -187,10 +187,10 @@ const InstallPage: React.FC = () => {
                         <Step
                             number={6}
                             title="Vincular Licencia"
-                            description="Abre la extensión desde la barra de herramientas y pega tu clave de licencia para activar la conexión."
+                            description="Copia tu 'Clave de Licencia' desde esta misma web (ver imagen) y pégala en la extensión para activarla."
                             icon={Key}
-                            placeholderText="ENTER LICENSE"
-                            gifSrc="/step-6-license.png"
+                            placeholderText="DASHBOARD LICENSE LOCATION"
+                            gifSrc="/step-license-dashboard.png"
                         />
                     </div>
                 </div>
