@@ -269,6 +269,19 @@ const Dashboard: React.FC = () => {
         setMemberSince(date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }));
       }
 
+      // Fetch License Key (Added Fix)
+      const { data: license } = await supabase
+        .from('licenses')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (license) {
+        setLicenseKey(license.key);
+      } else {
+        setLicenseKey("No encontrada. Contacta soporte.");
+      }
+
     } catch (err) {
       console.error('Error fetching profile:', err);
     }
@@ -393,14 +406,6 @@ const Dashboard: React.FC = () => {
                 <h1 className="text-5xl font-extrabold tracking-tight">Bienvenido, {userName.split(' ')[0]}.</h1>
                 <p className="text-white/40 text-lg font-medium">Tu motor de ingenio está listo para trabajar.</p>
               </div>
-              <button
-                onClick={handleTestComment}
-                disabled={isGenerating}
-                className="group flex items-center gap-3 px-8 py-4 bg-gradient-neon rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <Activity className="group-hover:rotate-12 transition-transform" size={20} />}
-                {isGenerating ? "Generando..." : "Generar Comentario IA"}
-              </button>
             </div>
 
             {error && (
