@@ -37,17 +37,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(403).json({ error: 'No active license found' });
         }
 
-        // Optional: Strict IP check. 
-        // If you want to enforce IP binding strictly:
-        if (license.bound_ip && license.bound_ip !== ip) {
-            // Allow re-binding or block? Requirement says "Verifica: Licencia Activa + IP coincide"
-            // We'll block strictly for this implementation as requested.
-            // return res.status(403).json({ error: 'IP address mismatch. License bound to different IP.' });
+        // Logic check: Auto-bind if not set
+        if (!license.bound_ip) {
+            const { error: bindError } = await supabase
+                .from('licenses')
+                .update({ bound_ip: ip })
+                .eq('key', license.key);
 
-            // Note: In development/localhost, IP might vary or be ::1. We might want to relax this slightly or handle it.
-            // For this task, strict check:
-            if (process.env.NODE_ENV === 'production' && license.bound_ip !== ip) {
-                return res.status(403).json({ error: 'Invalid IP address' });
+            if (bindError) {
+                console.error('Failed to bind IP:', bindError);
+                return res.status(500).json({ error: 'Failed to bind device IP' });
+            }
+        } else {
+            // Strict IP check if already bound
+            if (license.bound_ip !== ip) {
+                return res.status(403).json({ error: `Invalid IP address. License bound to: ${license.bound_ip}` });
             }
         }
 
@@ -80,15 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const generatedText = completion.choices[0].message.content;
 
-        // 4. Increment Daily Usage
+        // 4. Increment Daily Usage & Total Usage
         const { error: usageError } = await supabase
             .from('user_settings')
-            .update({ daily_usage: settings.daily_usage + 1 })
+            .update({
+                daily_usage: settings.daily_usage + 1,
+                total_usage: (settings.total_usage || 0) + 1
+            })
             .eq('user_id', userId);
 
         if (usageError) {
             console.error('Failed to update usage:', usageError);
-            // Continue anyway or fail? Typically continue but log error.
         }
 
         return res.status(200).json({ result: generatedText });

@@ -13,52 +13,63 @@ export interface CommentResponse {
  * We use 'gemini-3-flash-preview' for fast, efficient text generation.
  */
 export const generateComment = async (
-  postText: string, 
-  usedToday: number, 
+  postText: string,
+  usedToday: number,
   riskLevel: RiskLevel,
   licenseActive: boolean,
-  personality: string = ''
+  personality: string = '',
+  userId?: string
 ): Promise<CommentResponse> => {
   if (!licenseActive) {
     return { success: false, error: 'Licencia no válida o inactiva.' };
   }
 
+  // Pre-check limit on client side for better UX (optional, but good)
   const limit = RISK_LIMITS[riskLevel];
   if (usedToday >= limit) {
     return { success: false, error: 'Límite diario alcanzado para tu nivel de riesgo.' };
   }
 
+  if (!userId) {
+    return { success: false, error: 'Usuario no autenticado.' };
+  }
+
   try {
-    // Initialize GoogleGenAI with the provided API key from environment.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Generate a LinkedIn comment for the following post: "${postText}"`,
-      config: {
-        systemInstruction: personality 
-          ? `You are a professional on LinkedIn with this personality: ${personality}. Generate a natural, human-sounding comment (1-3 sentences) that adds value. Avoid generic AI phrases.`
-          : "You are a professional on LinkedIn. Generate a concise, engaging, and natural-sounding comment (1-3 sentences). Avoid generic phrases like 'Great post!'.",
-        temperature: 0.8,
+    const response = await fetch('/api/generate-comment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        userId,
+        prompt: postText, // API expects 'prompt'
+        // personality is handled by backend fetching user settings, 
+        // but we might want to update it if the UI allows changing it on the fly?
+        // The current backend fetches 'persona_prompt' from DB. 
+        // If we want the UI value to take precedence or update the DB, we'd need extra logic.
+        // For now, let's rely on the backend fetching from DB as per requirements.
+      }),
     });
 
-    // Accessing .text directly as per @google/genai guidelines.
-    const comment = response.text;
+    const data = await response.json();
 
-    if (!comment) {
-      throw new Error("Gemini API returned an empty response.");
+    if (!response.ok) {
+      throw new Error(data.error || 'Server error');
+    }
+
+    if (!data.result) {
+      throw new Error("API returned empty response.");
     }
 
     return {
       success: true,
-      comment: comment.trim()
+      comment: data.result
     };
-  } catch (error) {
-    console.error("Gemini Generation Error:", error);
-    return { 
-      success: false, 
-      error: 'Error de conexión con IngenIA (Gemini API). Por favor, intenta de nuevo.' 
+  } catch (error: any) {
+    console.error("API Error:", error);
+    return {
+      success: false,
+      error: error.message || 'Error de conexión con IngenIA. Por favor, intenta de nuevo.'
     };
   }
 };

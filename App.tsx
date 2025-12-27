@@ -195,19 +195,111 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
 const Dashboard: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [view, setView] = useState<'dashboard' | 'profile'>('dashboard');
-  const [usedToday, setUsedToday] = useState(12);
+  const [usedToday, setUsedToday] = useState(0);
   const [riskLevel, setRiskLevel] = useState<RiskLevel>(RiskLevel.MEDIUM);
   const [personality, setPersonality] = useState('Estratega de negocios, tono empático y profesional.');
   const [history, setHistory] = useState<GenerationHistoryRecord[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentIp, setCurrentIp] = useState<string>('Detectando...');
+  const [totalUsage, setTotalUsage] = useState(0);
+  const [memberSince, setMemberSince] = useState('Reciente');
 
   const currentLimit = RISK_LIMITS[riskLevel];
   const progressPercentage = Math.min((usedToday / currentLimit) * 100, 100);
 
+  // Fetch session and profile on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsLoggedIn(!!session);
+      if (session) fetchProfile(session.user.id);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setIsLoggedIn(!!session);
+      if (session) fetchProfile(session.user.id);
+    });
+
+    // Detect IP (simple fetch)
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => setCurrentIp(data.ip))
+      .catch(() => setCurrentIp('Desconocida'));
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+
+      // Also fetch settings (mocked for now or added to fetched data if needed)
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (settings) {
+        setUsedToday(settings.daily_usage || 0);
+        setTotalUsage(settings.total_usage || 0);
+        setPersonality(settings.persona_prompt || personality);
+      } else {
+        // Create default settings if missing (should be handled by trigger, but just in case)
+      }
+
+      if (data && data.created_at) {
+        const date = new Date(data.created_at);
+        setMemberSince(date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }));
+      }
+
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+
+    // Upload logic would go here. For now, we'll try to use a data URL for immediate feedback implies storage setup needs.
+    // Assuming Supabase Storage 'avatars' bucket exists or similar. 
+    // Since I can't easily set up storage buckets via SQL only safely without knowing perms, 
+    // I will mock the visual change locally for the user session.
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setProfile({ ...profile, avatar_url: ev.target.result as string });
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // TODO: Implement actual Supabase Storage upload
+    // const fileExt = file.name.split('.').pop();
+    // const filePath = `${session.user.id}/avatar.${fileExt}`;
+    // await supabase.storage.from('avatars').upload(filePath, file);
+    // const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    // await supabase.from('user_profiles').update({ avatar_url: data.publicUrl }).eq('id', session.user.id);
+  };
+
   const handleTestComment = async () => {
+    if (!session) return;
     setIsGenerating(true);
     setError(null);
     setLastGenerated(null);
@@ -218,7 +310,8 @@ const Dashboard: React.FC = () => {
         usedToday,
         riskLevel,
         true,
-        personality
+        personality,
+        session.user.id // Pass ID for backend verification
       );
 
       if (response.success && response.comment) {
@@ -242,7 +335,10 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (!isLoggedIn) return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  if (!isLoggedIn) return <LoginPage onLogin={() => { }} />; // LoginPage handles auth state change via supabase listener
+
+  const userName = profile?.full_name || session?.user?.email?.split('@')[0] || "Usuario";
+  const userAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${userName}&background=3b82f6&color=fff`;
 
   return (
     <div className="min-h-screen bg-[#020205] text-white">
@@ -277,11 +373,11 @@ const Dashboard: React.FC = () => {
               className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-neon flex items-center justify-center overflow-hidden">
-                <img src="https://picsum.photos/seed/mary/64/64" alt="User" />
+                <img src={userAvatar} alt="User" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xs font-bold text-white/80">Mary Jane</span>
+              <span className="text-xs font-bold text-white/80">{userName}</span>
             </div>
-            <button onClick={() => setIsLoggedIn(false)} className="p-2 text-white/30 hover:text-white transition-colors">
+            <button onClick={() => supabase.auth.signOut()} className="p-2 text-white/30 hover:text-white transition-colors">
               <LogOut size={20} />
             </button>
           </div>
@@ -293,7 +389,7 @@ const Dashboard: React.FC = () => {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-12">
               <div className="space-y-2">
-                <h1 className="text-5xl font-extrabold tracking-tight">Bienvenido de nuevo.</h1>
+                <h1 className="text-5xl font-extrabold tracking-tight">Bienvenido, {userName.split(' ')[0]}.</h1>
                 <p className="text-white/40 text-lg font-medium">Tu motor de ingenio está listo para trabajar.</p>
               </div>
               <button
@@ -334,8 +430,8 @@ const Dashboard: React.FC = () => {
                         key={level}
                         onClick={() => setRiskLevel(level)}
                         className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${riskLevel === level
-                            ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
-                            : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
+                          ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
+                          : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
                           }`}
                       >
                         {level}
@@ -380,24 +476,22 @@ const Dashboard: React.FC = () => {
                 </div>
               </GlassCard>
 
-              {/* Tarjeta 3: Seguridad */}
-              <GlassCard title="Seguridad" icon={ShieldCheck}>
+              {/* Tarjeta 3: Seguridad Renovada */}
+              <GlassCard title="Dispositivo" icon={ShieldCheck}>
                 <div className="space-y-6">
                   <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Estado de Licencia</span>
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Estado de Conexión</span>
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> ACTIVA
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> SEGURA
                       </div>
                     </div>
-                    <p className="text-xs text-white/60">Sincronizada con <strong>88.21.XX.XX</strong></p>
+                    <p className="text-xs text-white/60">Vinculado a IP: <strong>{currentIp}</strong></p>
                   </div>
 
-                  <div className="space-y-3">
-                    <InputField label="Clave API" value="ING-8293-XP92-2024" onChange={() => { }} icon={Lock} />
-                    <button className="w-full py-3 text-red-400/50 hover:text-red-400 text-[10px] font-bold uppercase tracking-widest transition-colors">
-                      DESVINCULAR DISPOSITIVO
-                    </button>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Email Registrado</p>
+                    <p className="text-sm font-bold text-white/80 truncate">{session?.user?.email}</p>
                   </div>
                 </div>
               </GlassCard>
@@ -419,19 +513,28 @@ const Dashboard: React.FC = () => {
               <div className="lg:col-span-1 space-y-6">
                 <GlassCard title="Perfil" icon={UserCircle}>
                   <div className="text-center space-y-4">
-                    <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-neon mx-auto p-1">
-                      <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
-                        <img src="https://picsum.photos/seed/mary/200/200" alt="Profile" />
+                    <div className="relative w-24 h-24 mx-auto group cursor-pointer">
+                      <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <span className="text-xs font-bold text-white">CAMBIAR</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                      />
+                      <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
+                        <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
+                          <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                        </div>
                       </div>
                     </div>
+
                     <div>
-                      <h3 className="text-xl font-bold">Mary Jane</h3>
-                      <p className="text-sm text-white/40">CEO en WhiteStars</p>
+                      <h3 className="text-xl font-bold">{userName}</h3>
+                      <p className="text-sm text-white/40">{session?.user?.email}</p>
                     </div>
-                    <div className="flex justify-center gap-2">
-                      <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20">PREMIUM</span>
-                      <span className="px-3 py-1 rounded-full bg-white/5 text-white/40 text-[10px] font-bold">ALPHA TESTER</span>
-                    </div>
+                    {/* Hiding Badges as requested */}
                   </div>
                 </GlassCard>
 
@@ -439,15 +542,12 @@ const Dashboard: React.FC = () => {
                   <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
                   <div className="flex justify-between py-3 border-b border-white/5">
                     <span className="text-sm text-white/60 font-medium">Total Generado</span>
-                    <span className="text-sm font-bold">1,204</span>
+                    <span className="text-sm font-bold">{totalUsage}</span>
                   </div>
-                  <div className="flex justify-between py-3 border-b border-white/5">
-                    <span className="text-sm text-white/60 font-medium">Tasa de Enganche</span>
-                    <span className="text-sm font-bold text-green-400">+12.5%</span>
-                  </div>
+
                   <div className="flex justify-between py-3">
                     <span className="text-sm text-white/60 font-medium">Miembro desde</span>
-                    <span className="text-sm font-bold">Mar 2024</span>
+                    <span className="text-sm font-bold capitalize">{memberSince}</span>
                   </div>
                 </div>
               </div>
