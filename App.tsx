@@ -93,6 +93,17 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         if (error) throw error;
         onLogin();
       } else {
+        // --- Validation Logic ---
+        if (!fullName.trim()) {
+          throw new Error("El nombre es obligatorio.");
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          throw new Error("El email no es válido.");
+        }
+        // ------------------------
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -350,6 +361,28 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleSaveSettings = async () => {
+    if (!session?.user?.id) return;
+
+    // Optimistic Update
+    // setPersonality(personality); // Already set by onChange
+
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .update({ persona_prompt: personality })
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      // Optional: Show success state
+      alert("Configuración guardada correctamente.");
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      alert("Error al guardar la configuración.");
+    }
+  };
+
   if (!isLoggedIn) return <LoginPage onLogin={() => { }} />; // LoginPage handles auth state change via supabase listener
 
   const userName = profile?.full_name || session?.user?.email?.split('@')[0] || "Usuario";
@@ -484,7 +517,10 @@ const Dashboard: React.FC = () => {
                     className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder:text-white/10"
                     placeholder="Ej: Directivo senior, irónico pero constructivo..."
                   />
-                  <button className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                  <button
+                    onClick={handleSaveSettings}
+                    className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  >
                     <Save size={16} /> Guardar Configuración
                   </button>
                 </div>
