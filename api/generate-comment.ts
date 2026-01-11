@@ -126,6 +126,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }).eq('user_id', userId);
         }
 
+        // 5. Save Contribution to History & FIFO Cleanup (Limit 10)
+        try {
+            // A. Insert new record
+            await supabase.from('generation_history').insert({
+                user_id: userId,
+                post_snippet: prompt ? prompt.substring(0, 50) + '...' : 'Generación Vía Extensión',
+                comment: generatedText
+            });
+
+            // B. Cleanup: Keep only last 10. 
+            // Logic: Select IDs of the top 10 newest. Delete everything NOT in that list.
+            /* 
+               Warning: Supabase JS client doesn't support complex subqueries in delete easily unless using RPC or careful filters.
+               Alternative approach: Fetch the 11th record's date or ID, and delete anything older.
+            */
+
+            const { data: historyItems } = await supabase
+                .from('generation_history')
+                .select('id, created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (historyItems && historyItems.length > 10) {
+                const itemsToDelete = historyItems.slice(10); // Get items from index 10 onwards (11th, 12th...)
+                const idsToDelete = itemsToDelete.map(i => i.id);
+
+                if (idsToDelete.length > 0) {
+                    await supabase
+                        .from('generation_history')
+                        .delete()
+                        .in('id', idsToDelete);
+                }
+            }
+
+        } catch (historyErr) {
+            console.error("Error saving history in API:", historyErr);
+            // Non-blocking error, don't fail the request
+        }
+
         return res.status(200).json({ result: generatedText });
 
     } catch (error: any) {
