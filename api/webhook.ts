@@ -11,6 +11,22 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
 
+// Disable Vercel's default body parser to get the raw stream for Stripe signature verification
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
+
+const buffer = (req: VercelRequest) => {
+    return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', reject);
+    });
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -26,7 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let event: Stripe.Event;
 
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        // Read raw body from request stream
+        const rawBody = await buffer(req);
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err: any) {
         console.error(`Webhook Error: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -34,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
-        const customerEmail = session.customer_details?.email?.toLowerCase(); // Ensure lowercase for consistent matching
+        const customerEmail = session.customer_details?.email?.toLowerCase();
 
         if (customerEmail) {
             // 1. Try to find existing user
@@ -48,11 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // EXISTING USER: Activate License
                 const { error: updateError } = await supabase
                     .from('licenses')
-                    .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() }) // 3 days trial
+                    .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() })
                     .eq('user_id', profiles.id);
 
                 if (updateError) console.error('Error activating license for existing user:', updateError);
-                else console.log(`License activated for existing user: ${profiles.id}`);
 
             } else {
                 // NEW USER: Add to Pre-Paid Waiting Room
@@ -61,7 +78,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .upsert({ email: customerEmail, status: 'paid' }, { onConflict: 'email' });
 
                 if (insertError) console.error('Error adding to pre-paid list:', insertError);
-                else console.log(`Added email to pre-paid licenses: ${customerEmail}`);
             }
         }
     }
