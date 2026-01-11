@@ -146,6 +146,7 @@ const AppContent: React.FC = () => {
           profile={profile}
           userAvatar={userAvatar}
           userName={profile?.full_name || 'Usuario'}
+          licenseStatus={licenseStatus}
         >
           <Routes>
             <Route path="panel" element={
@@ -191,27 +192,40 @@ const AppContent: React.FC = () => {
   );
 };
 
+// Paywall Component
+const Paywall: React.FC<{ session: any }> = ({ session }) => (
+  <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-4">
+    <div className="max-w-md w-full glass p-12 rounded-[3rem] border-blue-500/20 text-center space-y-8 animate-in zoom-in-95 duration-500 relative overflow-hidden">
+      <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="relative z-10">
+        <div className="w-20 h-20 bg-blue-500/10 rounded-full text-blue-400 mx-auto flex items-center justify-center mb-6 animate-pulse">
+          <Loader2 size={40} />
+        </div>
+        <h2 className="text-4xl font-black tracking-tighter">Completa tu Acceso</h2>
+        <p className="text-white/50 text-lg">Para acceder al panel y activar tu licencia, completa tu suscripción de prueba.</p>
+
+        <a
+          href={`https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(session?.user?.email || '')}`}
+          className="w-full py-4 bg-gradient-neon rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
+        >
+          Activar Prueba Gratis
+        </a>
+        <button onClick={() => supabase.auth.signOut()} className="text-sm text-white/30 hover:text-white mt-4 underline decoration-white/30 underline-offset-4">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // Layout for Authenticated Views
-const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, userAvatar: string, userName: string }> = ({ children, session, userAvatar, userName }) => {
+const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, userAvatar: string, userName: string, licenseStatus: string }> = ({ children, session, userAvatar, userName, licenseStatus }) => {
   const location = useLocation();
-  const isInstall = location.pathname.includes('instalacion');
 
-  // Installation page handles its own layout/nav in the design I made? 
-  // Actually, I made Installation.tsx have a Nav bar too.
-  // But Panel and Profile need the main Nav.
-  // If Installation is inside this layout, we might double nav. 
-  // Let's check: Installation.tsx HAS a nav bar.
-  // Panel and Profile do NOT have a nav bar in my code above?
-  // Checked Panel.tsx: No Nav.
-  // Checked Profile.tsx: No Nav.
-  // So this Layout MUST provide the Nav.
-  // Does Installation.tsx need a Nav? Yes.
-  // So I should REMOVE Nav from Installation.tsx and put it here.
-  // OR, I conditionally render Nav.
-
-  // Simplest: This Layout provides the Nav for EVERYONE.
-  // I will assume Installation.tsx content main wrapper is enough, but I should probably strip the Nav from Installation.tsx if I use this layout. 
-  // For now, I'll use a standardized Nav here.
+  // STRICT PAYWALL GUARD: If not active, show Paywall ONLY.
+  if (licenseStatus !== 'active') {
+    return <Paywall session={session} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30">
@@ -240,12 +254,7 @@ const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, user
           </div>
 
           <div className="flex items-center gap-4">
-            <a href="/user" className="flex items-center gap-3 p-1.5 pr-4 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all cursor-pointer">
-              <div className="w-8 h-8 rounded-full bg-gradient-neon flex items-center justify-center overflow-hidden">
-                <img src={userAvatar} alt="User" className="w-full h-full object-cover" />
-              </div>
-              <span className="text-xs font-bold text-white/80">{userName.split(' ')[0]}</span>
-            </a>
+            {/* REMOVED USER CHIP AS REQUESTED */}
             <button onClick={() => supabase.auth.signOut()} className="p-2 text-white/30 hover:text-white transition-colors" title="Cerrar Sesión">
               <LogOut size={20} />
             </button>

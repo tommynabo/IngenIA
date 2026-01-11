@@ -77,7 +77,7 @@ export const Installation: React.FC = () => {
                                 </div>
                                 <div className="w-full md:w-48 aspect-video bg-black/40 rounded-xl border border-white/5 flex items-center justify-center text-white/20">
                                     {/* Placeholder for image */}
-                                    <span className="text-xs font-mono">IMG: {step.img}</span>
+                                    <img src={`/${step.img}`} alt={step.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                 </div>
                             </div>
                         </div>
