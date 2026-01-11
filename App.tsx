@@ -107,14 +107,24 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      if (session) await fetchProfile(session.user.id);
-      setLoading(false);
+      try {
+        if (session) await fetchProfile(session.user.id);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setLoading(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) await fetchProfile(session.user.id);
-      else setLoading(false);
+      try {
+        if (session) await fetchProfile(session.user.id);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+      } finally {
+        setLoading(false);
+      }
     });
 
     // Check payment param logic is now in Panel or App?
