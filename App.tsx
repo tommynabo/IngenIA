@@ -269,6 +269,15 @@ const Dashboard: React.FC = () => {
           postSnippet: item.post_snippet,
           comment: item.comment
         })));
+
+        // Self-correction for Total Usage display if DB count was wiped but history exists
+        // Note: This only helps IF history table wasn't also wiped.
+        // We use a functional update to ensure we don't depend on stale closures, 
+        // though here we are inside the fetch function.
+        // Ideally total_usage comes from settings, but if settings says 0 and we have 20 items, something is wrong.
+        if (data.length > 0) {
+          setTotalUsage(prev => (prev === 0 ? Math.max(prev, data.length) : prev));
+        }
       }
     } catch (err) {
       console.error('Error fetching history:', err);
@@ -360,7 +369,7 @@ const Dashboard: React.FC = () => {
       }
 
       // Fetch History
-      fetchHistory(userId);
+      await fetchHistory(userId); // Await to use history length
 
     } catch (err) {
       console.error('Error fetching profile:', err);
