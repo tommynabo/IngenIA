@@ -54,7 +54,8 @@ create table public.user_settings (
   risk_level risk_level_enum default 'low',
   daily_usage int default 0,
   daily_limit int default 50,
-  total_usage int default 0 -- Added to track lifetime stats
+  total_usage int default 0, -- Added to track lifetime stats
+  last_reset_date text
 );
 
 -- RLS for user_settings
@@ -85,7 +86,7 @@ create policy "Users can insert their own history" on public.generation_history
   for insert with check (auth.uid() = user_id);
 
 -- Update user_settings schema (Migration simulation)
--- ALTER TABLE public.user_settings ADD COLUMN last_reset_date date;
+
 
 -- Function to handle new user creation
 create or replace function public.handle_new_user()
