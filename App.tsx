@@ -8,6 +8,7 @@ import { LandingPage } from './src/components/LandingPage';
 import { Panel } from './src/components/Panel';
 import { Profile } from './src/components/Profile';
 import { Installation } from './src/components/Installation';
+import { Register } from './src/components/Register';
 
 // Types
 enum RiskLevel {
@@ -133,6 +134,7 @@ const AppContent: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={!session ? <LandingPage onLoginSuccess={(s) => setSession(s)} /> : <Navigate to="/panel" />} />
+      <Route path="/registro" element={!session ? <Register /> : <Navigate to="/panel" />} />
 
       {/* Protected Routes */}
       <Route path="/*" element={session ? (
