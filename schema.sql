@@ -1,9 +1,10 @@
 -- Reset (Caution: Deletes all data)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP TABLE IF EXISTS public.generation_history; -- Drop dependent table first
 DROP TABLE IF EXISTS public.licenses;
 DROP TABLE IF EXISTS public.user_settings;
-DROP TABLE IF EXISTS public.user_profiles;
+DROP TABLE IF EXISTS public.user_profiles CASCADE;
 DROP TYPE IF EXISTS license_status;
 DROP TYPE IF EXISTS risk_level_enum;
 
