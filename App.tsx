@@ -1,1009 +1,263 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  ShieldCheck,
-  Lock,
-  Activity,
-  UserCircle,
-  Save,
-  RotateCcw,
-  LogOut,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-  ExternalLink,
-  ChevronRight,
-  History,
-  LayoutDashboard,
-  Settings,
-  Mail,
-  Fingerprint,
-  Download
-} from 'lucide-react';
-import { RiskLevel, RISK_LIMITS, GenerationHistoryRecord } from './types';
-import { generateComment } from './services/aiService';
-
-// --- Atomic Components ---
-
-const GlassCard: React.FC<{
-  title: string;
-  children: React.ReactNode;
-  icon: any;
-  className?: string
-}> = ({ title, children, icon: Icon, className = "" }) => (
-  <div className={`glass rounded-3xl p-6 flex flex-col transition-all hover:border-blue-500/30 group ${className}`}>
-    <div className="flex items-center gap-4 mb-6">
-      <div className="p-3 rounded-2xl bg-white/5 text-blue-400 group-hover:scale-110 transition-transform">
-        <Icon size={22} />
-      </div>
-      <h2 className="text-xl font-bold tracking-tight text-white/90">{title}</h2>
-    </div>
-    <div className="flex-1">
-      {children}
-    </div>
-  </div>
-);
-
-const InputField: React.FC<{
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-  type?: string;
-  icon?: any;
-  placeholder?: string;
-}> = ({ label, value, onChange, type = "text", icon: Icon, placeholder }) => (
-  <div className="space-y-2">
-    <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</label>
-    <div className="relative group">
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full pl-4 pr-12 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder:text-white/20"
-      />
-      {Icon && <Icon className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 group-hover:text-blue-400 transition-colors" size={18} />}
-    </div>
-  </div>
-);
-
-// --- Views ---
-
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './services/supabaseClient';
+import { LayoutDashboard, UserCircle, Download, LogOut, Loader2 } from 'lucide-react';
 
-const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Components
+import { LandingPage } from './src/components/LandingPage';
+import { Panel } from './src/components/Panel';
+import { Profile } from './src/components/Profile';
+import { Installation } from './src/components/Installation';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+// Types
+enum RiskLevel {
+  LOW = 'BAJO',
+  MEDIUM = 'MEDIO',
+  HIGH = 'ALTO'
+}
 
-    try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        onLogin();
-      } else {
-        // --- Validation Logic ---
-        if (!fullName.trim()) {
-          throw new Error("El nombre es obligatorio.");
-        }
+interface GenerationHistoryRecord {
+  id: string;
+  timestamp: string;
+  postSnippet: string;
+  comment: string;
+}
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-          throw new Error("El email no es válido.");
-        }
-        // ------------------------
-
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            },
-          },
-        });
-        if (error) throw error;
-        // Auto login or ask to check email? For now assuming auto-login or success message
-        alert('Registro exitoso! Por favor verifica tu email o inicia sesión.');
-        setIsLogin(true);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const App: React.FC = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#020205]">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-4">
-          <div className="inline-block p-4 rounded-3xl bg-gradient-neon shadow-lg mb-4">
-            <Fingerprint className="text-white" size={40} />
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tighter text-white">
-            ingen<span className="text-blue-500">IA</span>
-          </h1>
-          <p className="text-white/50 font-medium">
-            {isLogin ? 'Accede a tu cuenta profesional' : 'Crea tu cuenta profesional'}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="glass rounded-[2rem] p-8 space-y-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-neon"></div>
-
-          {!isLogin && (
-            <InputField
-              label="Nombre Completo"
-              value={fullName}
-              onChange={setFullName}
-              icon={UserCircle}
-              placeholder="Juan Pérez"
-            />
-          )}
-
-          <InputField
-            label="Email"
-            value={email}
-            onChange={setEmail}
-            icon={Mail}
-            placeholder="mary@whitestars.io"
-          />
-          <InputField
-            label="Contraseña"
-            value={password}
-            onChange={setPassword}
-            type="password"
-            icon={Lock}
-            placeholder="••••••••"
-          />
-
-          {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold flex items-center gap-2">
-              <AlertCircle size={14} />
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-gradient-neon text-white rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : (isLogin ? "Iniciar Sesión" : "Empezar prueba gratis de 3 días")}
-          </button>
-
-          <div className="pt-4 text-center space-y-3">
-            <button
-              type="button"
-              onClick={() => { setIsLogin(!isLogin); setError(null); }}
-              className="text-xs text-white/50 hover:text-white transition-colors font-medium"
-            >
-              {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia Sesión"}
-            </button>
-
-            {isLogin && (
-              <div>
-                <a href="#" className="text-[10px] text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest">¿Olvidaste tu contraseña?</a>
-              </div>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
-};
+}
 
-const Dashboard: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const AppContent: React.FC = () => {
   const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Data State
   const [profile, setProfile] = useState<any>(null);
-  const [view, setView] = useState<'dashboard' | 'profile'>('dashboard');
+  const [riskLevel, setRiskLevel] = useState<RiskLevel>(RiskLevel.LOW);
   const [usedToday, setUsedToday] = useState(0);
-  const [riskLevel, setRiskLevel] = useState<RiskLevel>(RiskLevel.MEDIUM);
-  const [personality, setPersonality] = useState(`# ROL
-ERES [TU NOMBRE]. [TU PUESTO ACTUAL]. [TU EMPRESA]. [TU EDAD/UBICACIÓN - OPCIONAL].
-
-**TUS PALABRAS CLAVE (Professional):** [KEYWORD 1], [KEYWORD 2], [KEYWORD 3].
-**TUS PALABRAS CLAVE (Personal/Hobbies):** [KEYWORD 4], [KEYWORD 5].
-
-[BREVE DESCRIPCIÓN DE TU PROPUESTA DE VALOR: A QUIÉN AYUDAS Y CÓMO].
-[BREVE DESCRIPCIÓN DE TU LADO HUMANO: QUÉ TE GUSTA HACER FUERA DEL TRABAJO].
-
-Comentas publicaciones en LinkedIn mientras tomas café. Comentas como hablas: directo, sin florituras, pensando en voz alta.
-
-## OBJETIVO
-Comentar de forma natural y variada, como lo haría alguien real en LinkedIn. Cada comentario debe sonar único y adaptado al post.
-
-## INSTRUCCIÓN OBLIGATORIA DE CIERRE
-**IMPRESCINDIBLE:** Debes finalizar SIEMPRE tu comentario mencionando al creador del post. Intégralo en la frase final o ponlo al acabar la idea, usando el formato: @NOMBREDEPERFIL
-
-## ESTILO DE ESCRITURA
-
-**Tono:**
-- Natural y de calle, sin ser macarra
-- Directo y humilde
-- Conversacional, como si pensaras en voz alta
-
-**Conectores permitidos (usa con moderación):**
-la verdad, ojo que, justo, no sé si, debe ser, mira, porque, por eso, así que, total que, al final, la cosa es que, oye, aun así, eso sí, igual, a veces
-
-**Longitud:**
-- Ideal: 1-2 frases (máximo 70 caracteres)
-- Permitido hasta 4 líneas si aportas experiencia personal o insight valioso
-- La brevedad gana, pero el valor también cuenta
-
-## TIPOS DE COMENTARIO (rota entre ellos)
-
-**1. Elegir favorito + razón breve**
-- "Me quedo con la [número]"
-- "La [número] me parece muy top"
-- "El [número] es brutal"
-Añade razón práctica en 1 frase
-
-**2. Reformular el concepto clave**
-- "No es falta de talento, es falta de encaje"
-- "Muchas veces creemos que X, cuando en realidad es Y"
-- "El problema no es X sino Y"
-Da una vuelta al concepto del post
-
-**3. Identificación + historia breve**
-- Comparte experiencia similar
-- Conecta con lo que dice
-- Máximo 3-4 líneas
-
-**4. Validación + insight personal**
-- Confirma algo del post
-- Añade tu perspectiva en 1 línea
-- Sin repetir lo que ya dijo
-
-**5. Experiencia contraria (con respeto)**
-- "En mi caso funciona diferente..."
-- "Sí y no, depende de..."
-- Siempre educado y con fundamento
-
-**6. Celebrar + advertir/aconsejar**
-- "Está muy bien, pero ojo que..."
-- "Es brutal, ahora toca..."
-- Equilibrio positivo-constructivo
-
-**7. Humor ligero o metáfora**
-- Si sale natural, no forzado
-- Relacionado con el tema
-- Breve y al punto
-
-**8. Reacción emocional + validación**
-- "Qué bonito todo lo que compartes"
-- "Me alegro que te haya mejorado tanto"
-- Solo si el post es personal/emocional
-
-## FRASES DE INICIO VARIADAS
-
-Rota conscientemente entre estas opciones:
-
-- "Me quedo con..."
-- "La [número] qué..."
-- "Practico casi todos..."
-- "Rodearte de gente que..."
-- "El punto de [tema] es..."
-- "Yo he pasado de..."
-- "A veces no es..."
-- "Muchas veces creemos que..."
-- "Lo que marca la diferencia..."
-- "El problema no es..."
-- "En mi caso..."
-- "Yo también..."
-- "Qué bonito..."
-- "Me siento identificado..."
-- "Lo curioso es que..."
-- "No es falta de..."
-- "Total que..."
-- "Al final..."
-- "[Tema] no va de X, va de Y"
-- Directo al tema sin introducción
-
-## PROHIBIDO
-
-❌ Emojis, hashtags, enlaces y comillas
-❌ Estos caracteres: "palabra", ', -, ()
-❌ Empezar con: "Totalmente", "Muy interesante", "Excelente", "Gran post"
-❌ Hacer preguntas al autor (salvo técnicas en posts técnicos)
-❌ Sonar corporativo o muy educado
-❌ Listas o bullets
-❌ Saludos, enhorabuenas genéricas, despedidas
-❌ Ser agresivo o atacar el post
-❌ Usar la misma estructura dos veces seguidas
-❌ Repetir exactamente lo que dice el post
-
-## PERMITIDO
-
-✅ Compartir experiencia personal breve
-✅ Referir a números específicos del post
-✅ Reformular conceptos con tus palabras
-✅ Aportar perspectiva diferente con respeto
-✅ Hacer preguntas técnicas si el post lo permite
-
-## CONTEXTO LINKEDIN
-
-La gente comenta para:
-- Caer bien y hacer networking
-- Mostrar que conocen el tema
-- Aportar su perspectiva genuina
-- Validar al autor
-- Compartir experiencias similares
-- Reformular conceptos desde su ángulo
-
-**Importante**: No todo comentario tiene que ser positivo, pero sí respetuoso. Puedes discrepar, dudar, o aportar experiencias contrarias siempre que sea constructivo.
-
-## TEST DE CALIDAD
-
-1. ¿Suena como algo que dirías tomando café?
-2. ¿Aporta algo más allá de validar genéricamente?
-3. ¿Es específico del post o podría valer para cualquiera?
-4. ¿Tiene menos de 150 caracteres o está justificado ser más largo?
-5. ¿Elimina toda palabra innecesaria?
-6. ¿Evita repetir exactamente lo que dice el post?
-7. ¿Incluye la mención @NOMBREDEPERFIL al final?
-
-**CRÍTICO:** Cada comentario debe ser ÚNICO. Nunca uses la misma estructura, inicio o frase dos veces. La variedad te hace humano. Rota conscientemente entre los 8 tipos de comentario.
-
-**RECORDATORIO FINAL:** No olvides cerrar la frase mencionando al autor con @NOMBREDEPERFIL.`);
-  const [history, setHistory] = useState<GenerationHistoryRecord[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [currentIp, setCurrentIp] = useState<string>('Detectando...');
   const [totalUsage, setTotalUsage] = useState(0);
-  const [memberSince, setMemberSince] = useState('Reciente');
-  const [licenseKey, setLicenseKey] = useState<string>('');
-  const [licenseStatus, setLicenseStatus] = useState<'active' | 'inactive' | 'banned'>('inactive'); // Default inactive
-  const [showPaywall, setShowPaywall] = useState(false);
+  const [personality, setPersonality] = useState('');
+  const [history, setHistory] = useState<GenerationHistoryRecord[]>([]);
 
-  const currentLimit = RISK_LIMITS[riskLevel];
-  const progressPercentage = Math.min((usedToday / currentLimit) * 100, 100);
+  // Settings
+  const [licenseKey, setLicenseKey] = useState('');
+  const [licenseStatus, setLicenseStatus] = useState('inactive');
+  const [userAvatar, setUserAvatar] = useState('https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
-  // Fetch session and profile on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoggedIn(!!session);
-      if (session) {
-        // Check for payment success URL param immediately after session is confirmed
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('payment') === 'success') {
-          // Activate License Client-Side
-          supabase
-            .from('licenses')
-            .update({ status: 'active' })
-            .eq('user_id', session.user.id)
-            .then(({ error }) => {
-              if (!error) {
-                // Clear URL param without reload
-                window.history.replaceState({}, '', window.location.pathname);
-                alert("¡Suscripción activada con éxito! Bienvenido.");
-              } else {
-                console.error("Error activating license:", error);
-              }
-              // Fetch profile regardless to update UI
-              fetchProfile(session.user.id);
-            });
-        } else {
-          fetchProfile(session.user.id);
-        }
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setIsLoggedIn(!!session);
-      if (session) fetchProfile(session.user.id);
-    });
-
-    // Detect IP (simple fetch)
-    fetch('https://api.ipify.org?format=json')
-      .then(res => res.json())
-      .then(data => setCurrentIp(data.ip))
-      .catch(() => setCurrentIp('Desconocida'));
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // --- History Logic ---
+  // --- Fetch Logic ---
   const fetchHistory = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('generation_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-
-      if (data) {
-        setHistory(data.map(item => ({
-          id: item.id,
-          timestamp: item.created_at,
-          postSnippet: item.post_snippet,
-          comment: item.comment
-        })));
-
-        // Self-correction for Total Usage display if DB count was wiped but history exists
-        // Note: This only helps IF history table wasn't also wiped.
-        // We use a functional update to ensure we don't depend on stale closures, 
-        // though here we are inside the fetch function.
-        // Ideally total_usage comes from settings, but if settings says 0 and we have 20 items, something is wrong.
-        if (data.length > 0) {
-          setTotalUsage(prev => (prev === 0 ? Math.max(prev, data.length) : prev));
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching history:', err);
+    const { data } = await supabase.from('generation_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
+    if (data) {
+      setHistory(data.map(item => ({
+        id: item.id,
+        timestamp: item.created_at,
+        postSnippet: item.post_snippet,
+        comment: item.comment
+      })));
+      if (data.length > 0) setTotalUsage(prev => (prev === 0 ? Math.max(prev, data.length) : prev));
     }
   };
 
-  // --- Risk Reset Logic ---
   const checkDailyReset = async (userId: string, currentSettings: any) => {
     const now = new Date();
     const currentHour = now.getHours();
-
-    // Logic: The "current business day" starts at 8 AM.
-    // If it's before 8 AM, we are still in "yesterday's" cycle.
-    // If it's after 8 AM, we are in "today's" cycle.
-
     let cycleDate = new Date(now);
-    if (currentHour < 8) {
-      cycleDate.setDate(cycleDate.getDate() - 1);
-    }
-    // Normalize to YYYY-MM-DD
+    if (currentHour < 8) cycleDate.setDate(cycleDate.getDate() - 1);
     const dateString = cycleDate.toISOString().split('T')[0];
 
-    // If never reset, or stored reset date is different from calculated cycle date
     if (!currentSettings.last_reset_date || currentSettings.last_reset_date !== dateString) {
-      console.log("Resetting daily usage...", dateString);
-
-      const { error } = await supabase
-        .from('user_settings')
-        .update({
-          daily_usage: 0,
-          last_reset_date: dateString
-        })
-        .eq('user_id', userId);
-
-      if (!error) {
-        setUsedToday(0);
-        // Refresh settings locally
-        currentSettings.daily_usage = 0;
-        currentSettings.last_reset_date = dateString;
-      }
+      const { error } = await supabase.from('user_settings').update({ daily_usage: 0, last_reset_date: dateString }).eq('user_id', userId);
+      if (!error) setUsedToday(0);
     }
   };
 
   const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-
-      // Also fetch settings (mocked for now or added to fetched data if needed)
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (settings) {
-        setUsedToday(settings.daily_usage || 0);
-        setTotalUsage(settings.total_usage || 0);
-        setPersonality(settings.persona_prompt || personality);
-
-        // Check for 8 AM reset
-        await checkDailyReset(userId, settings);
-      } else {
-        // Create default settings if missing (should be handled by trigger, but just in case)
-      }
-
-      if (data && data.created_at) {
-        const date = new Date(data.created_at);
-        setMemberSince(date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }));
-      }
-
-      // Fetch License Key (Added Fix)
-      const { data: license } = await supabase
-        .from('licenses')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (license) {
-        setLicenseKey(license.key);
-        setLicenseStatus(license.status);
-
-        // PAYWALL LOGIC
-        // If query param ?payment=success exists, we might treat it as active optimistically
-        // OR we just rely on DB. 
-        // For smoother UX, if param is success but DB is still inactive (webhook lag), we could show a "Verifying..." spinner
-        // But for now, simple boolean logic.
-        const params = new URLSearchParams(window.location.search);
-        if (license.status === 'active' || params.get('payment') === 'success') {
-          setShowPaywall(false);
-        } else {
-          setShowPaywall(true);
-        }
-      } else {
-        setLicenseKey("No encontrada. Contacta soporte.");
-        setShowPaywall(true); // No license? Block.
-      }
-
-      // Fetch History
-      await fetchHistory(userId); // Await to use history length
-
-    } catch (err) {
-      console.error('Error fetching profile:', err);
+    // Profile
+    const { data: pData } = await supabase.from('user_profiles').select('*').eq('id', userId).single();
+    if (pData) {
+      setProfile(pData);
+      if (pData.avatar_url) setUserAvatar(pData.avatar_url);
     }
-  };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-
-    // Upload logic would go here. For now, we'll try to use a data URL for immediate feedback implies storage setup needs.
-    // Assuming Supabase Storage 'avatars' bucket exists or similar. 
-    // Since I can't easily set up storage buckets via SQL only safely without knowing perms, 
-    // I will mock the visual change locally for the user session.
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (ev.target?.result) {
-        setProfile({ ...profile, avatar_url: ev.target.result as string });
-      }
-    };
-    reader.readAsDataURL(file);
-
-    // TODO: Implement actual Supabase Storage upload
-    // const fileExt = file.name.split('.').pop();
-    // const filePath = `${session.user.id}/avatar.${fileExt}`;
-    // await supabase.storage.from('avatars').upload(filePath, file);
-    // const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    // await supabase.from('user_profiles').update({ avatar_url: data.publicUrl }).eq('id', session.user.id);
-  };
-
-  const handleTestComment = async () => {
-    if (!session) return;
-    setIsGenerating(true);
-    setError(null);
-    setLastGenerated(null);
-
-    try {
-      const response = await generateComment(
-        "AI transparency is crucial for the future of professional networks.",
-        usedToday,
-        riskLevel,
-        true,
-        personality,
-        session.user.id // Pass ID for backend verification
-      );
-
-      if (response.success && response.comment) {
-        setLastGenerated(response.comment);
-        setUsedToday(prev => prev + 1);
-
-        // Persist to DB
-        const { data: savedRecord } = await supabase
-          .from('generation_history')
-          .insert({
-            user_id: session.user.id,
-            post_snippet: "AI transparency is crucial...", // In real app, this comes from input
-            comment: response.comment
-          })
-          .select()
-          .single();
-
-        if (savedRecord) {
-          setHistory(prev => [{
-            id: savedRecord.id,
-            timestamp: savedRecord.created_at,
-            postSnippet: savedRecord.post_snippet,
-            comment: savedRecord.comment
-          }, ...prev]);
-        } else {
-          // Fallback local update if DB insert fails (graceful degradation)
-          const newRecord: GenerationHistoryRecord = {
-            id: Math.random().toString(36).substr(2, 9),
-            timestamp: new Date(),
-            postSnippet: "AI transparency is crucial...",
-            comment: response.comment
-          };
-          setHistory(prev => [newRecord, ...prev]);
-        }
-
-        // Update Usage Stats in DB
-        const newUsage = usedToday + 1;
-        await supabase
-          .from('user_settings')
-          .update({
-            daily_usage: newUsage,
-            total_usage: totalUsage + 1
-          })
-          .eq('user_id', session.user.id);
-
-        setTotalUsage(prev => prev + 1);
-      } else {
-        setError(response.error || "Error desconocido");
-      }
-    } catch (e) {
-      setError("Error de conexión");
-    } finally {
-      setIsGenerating(false);
+    // Settings
+    const { data: sData } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+    if (sData) {
+      setUsedToday(sData.daily_usage || 0);
+      setTotalUsage(sData.total_usage || 0);
+      setPersonality(sData.persona_prompt || '');
+      checkDailyReset(userId, sData);
     }
-  };
 
-  const handleSaveSettings = async () => {
-    if (!session?.user?.id) return;
-
-    // Optimistic Update
-    // setPersonality(personality); // Already set by onChange
-
-    try {
-      const { error } = await supabase
-        .from('user_settings')
-        .update({ persona_prompt: personality })
-        .eq('user_id', session.user.id);
-
-      if (error) throw error;
-
-      // Optional: Show success state
-      alert("Configuración guardada correctamente.");
-    } catch (err) {
-      console.error("Error saving settings:", err);
-      alert("Error al guardar la configuración.");
+    // License
+    const { data: lData } = await supabase.from('licenses').select('*').eq('user_id', userId).single();
+    if (lData) {
+      setLicenseKey(lData.key);
+      setLicenseStatus(lData.status);
     }
+
+    // History
+    fetchHistory(userId);
   };
 
-  if (!isLoggedIn) return <LoginPage onLogin={() => { }} />; // LoginPage handles auth state change via supabase listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchProfile(session.user.id);
+      setLoading(false);
+    });
 
-  const userName = profile?.full_name || session?.user?.email?.split('@')[0] || "Usuario";
-  const userAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${userName}&background=3b82f6&color=fff`;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchProfile(session.user.id);
+      else setLoading(false);
+    });
+
+    // Check payment param logic is now in Panel or App?
+    // User asked for logic in Panel probably, or Global?
+    // We can keep the global check here if it affects routing, but usually it updates DB.
+    // The previous implementation had it in App.tsx useEffect.
+    // I will add it here to ensure it runs on any protected route.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success' && session) {
+      supabase.from('licenses').update({ status: 'active' }).eq('user_id', session.user.id)
+        .then(() => {
+          fetchProfile(session.user.id);
+          window.history.replaceState({}, '', window.location.pathname);
+        });
+    }
+
+    return () => subscription.unsubscribe();
+  }, [session?.user?.id]); // Re-run if user changes
+
+  if (loading) return <div className="min-h-screen bg-[#050508] flex items-center justify-center text-white"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-[#020205] text-white">
-      {/* Header */}
-      <nav className="glass sticky top-0 z-[100] border-b border-white/5 py-4 px-6 mb-8">
-        <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-8">
-            <div className="text-2xl font-extrabold tracking-tighter">
-              ingen<span className="text-blue-500">IA</span>
-            </div>
-            <div className="hidden md:flex gap-6 text-sm font-semibold text-white/50">
-              <button
-                onClick={() => setView('dashboard')}
-                className={`transition-colors flex items-center gap-2 ${view === 'dashboard' ? 'text-white' : 'hover:text-white'}`}
-              >
-                <LayoutDashboard size={18} />
-                Panel
-              </button>
-              <button
-                onClick={() => setView('profile')}
-                className={`transition-colors flex items-center gap-2 ${view === 'profile' ? 'text-white' : 'hover:text-white'}`}
-              >
-                <UserCircle size={18} />
-                Perfil
-              </button>
-              <button
-                onClick={() => window.location.href = '/install.html'}
-                className="transition-colors flex items-center gap-2 hover:text-white"
-              >
-                <Download size={18} />
-                Instalación
-              </button>
+    <Routes>
+      <Route path="/" element={!session ? <LandingPage onLoginSuccess={(s) => setSession(s)} /> : <Navigate to="/panel" />} />
+
+      {/* Protected Routes */}
+      <Route path="/*" element={session ? (
+        <AuthorizedLayout
+          session={session}
+          profile={profile}
+          userAvatar={userAvatar}
+          userName={profile?.full_name || 'Usuario'}
+        >
+          <Routes>
+            <Route path="panel" element={
+              <Panel
+                session={session}
+                profile={profile}
+                stats={{ usedToday, totalUsage, activeStreak: 0, riskLevel }}
+                settings={{ licenseKey, licenseStatus, personality }}
+                onUpdateStats={(s) => { setRiskLevel(s.riskLevel); setUsedToday(s.usedToday); }}
+                onUpdateSettings={(s) => setPersonality(s.personality)}
+                history={history}
+                onClearHistory={() => setHistory([])}
+              />
+            } />
+            <Route path="user" element={
+              <Profile
+                session={session}
+                userName={profile?.full_name || 'Usuario'}
+                userAvatar={userAvatar}
+                totalUsage={totalUsage}
+                memberSince={profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Reciente'}
+                history={history}
+                onClearHistory={() => setHistory([])}
+                onAvatarChange={(e: any) => {
+                  // Mock avatar change
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setUserAvatar(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            } />
+            <Route path="instalacion" element={<Installation />} />
+            <Route path="*" element={<Navigate to="/panel" />} />
+          </Routes>
+        </AuthorizedLayout>
+      ) : (
+        <Navigate to="/" />
+      )} />
+    </Routes>
+  );
+};
+
+// Layout for Authenticated Views
+const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, userAvatar: string, userName: string }> = ({ children, session, userAvatar, userName }) => {
+  const location = useLocation();
+  const isInstall = location.pathname.includes('instalacion');
+
+  // Installation page handles its own layout/nav in the design I made? 
+  // Actually, I made Installation.tsx have a Nav bar too.
+  // But Panel and Profile need the main Nav.
+  // If Installation is inside this layout, we might double nav. 
+  // Let's check: Installation.tsx HAS a nav bar.
+  // Panel and Profile do NOT have a nav bar in my code above?
+  // Checked Panel.tsx: No Nav.
+  // Checked Profile.tsx: No Nav.
+  // So this Layout MUST provide the Nav.
+  // Does Installation.tsx need a Nav? Yes.
+  // So I should REMOVE Nav from Installation.tsx and put it here.
+  // OR, I conditionally render Nav.
+
+  // Simplest: This Layout provides the Nav for EVERYONE.
+  // I will assume Installation.tsx content main wrapper is enough, but I should probably strip the Nav from Installation.tsx if I use this layout. 
+  // For now, I'll use a standardized Nav here.
+
+  return (
+    <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#050508]/80 backdrop-blur-xl">
+        <div className="max-w-[1200px] mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-12">
+            <a href="/panel" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-neon rounded-xl flex items-center justify-center rotate-3">
+                <span className="text-xl">⚡️</span>
+              </div>
+              <span className="text-xl font-black tracking-tighter">INGENIA</span>
+            </a>
+
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5">
+              <a href="/panel" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('panel') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
+                <LayoutDashboard size={16} /> Panel
+              </a>
+              <a href="/user" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('user') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
+                <UserCircle size={16} /> Perfil
+              </a>
+              <a href="/instalacion" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('instalacion') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
+                <Download size={16} /> Instalación
+              </a>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div
-              onClick={() => setView('profile')}
-              className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all"
-            >
+            <a href="/user" className="flex items-center gap-3 p-1.5 pr-4 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-all cursor-pointer">
               <div className="w-8 h-8 rounded-full bg-gradient-neon flex items-center justify-center overflow-hidden">
                 <img src={userAvatar} alt="User" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xs font-bold text-white/80">{userName}</span>
-            </div>
-            <button onClick={() => supabase.auth.signOut()} className="p-2 text-white/30 hover:text-white transition-colors">
+              <span className="text-xs font-bold text-white/80">{userName.split(' ')[0]}</span>
+            </a>
+            <button onClick={() => supabase.auth.signOut()} className="p-2 text-white/30 hover:text-white transition-colors" title="Cerrar Sesión">
               <LogOut size={20} />
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-[1200px] mx-auto px-6 pb-20">
-        {view === 'dashboard' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-12">
-              <div className="space-y-2">
-                <h1 className="text-5xl font-extrabold tracking-tight">Bienvenido, {userName.split(' ')[0]}.</h1>
-                <p className="text-white/40 text-lg font-medium">Tu motor de ingenio está listo para trabajar.</p>
-              </div>
-            </div>
-
-            {showPaywall ? (
-              <div className="flex flex-col items-center justify-center p-12 glass rounded-[3rem] border-blue-500/20 text-center space-y-8 animate-in zoom-in-95 duration-500">
-                <div className="p-6 bg-blue-500/10 rounded-full text-blue-400 mb-4 animate-pulse">
-                  <Lock size={64} />
-                </div>
-                <div className="space-y-4 max-w-lg">
-                  <h2 className="text-4xl font-black text-white tracking-tighter">¡Ya casi estás dentro!</h2>
-                  <p className="text-lg text-white/60 font-medium leading-relaxed">
-                    Para activar tu cuenta y comenzar tus <span className="text-blue-400 font-bold">3 días de prueba gratis</span>, necesitamos configurar tu suscripción.
-                  </p>
-                </div>
-
-                <a
-                  href={`https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(session?.user?.email || '')}`}
-                  className="group relative px-8 py-5 bg-gradient-neon rounded-2xl font-bold text-white shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all text-lg flex items-center gap-3 overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  <Activity className="animate-bounce" size={24} />
-                  Activar Suscripción & Prueba Gratis
-                </a>
-
-                <p className="text-xs text-white/30 uppercase tracking-widest font-bold">
-                  Cancela cuando quieras • 0€ hoy
-                </p>
-              </div>
-            ) : (
-              <>
-
-                {error && (
-                  <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400">
-                    <AlertCircle size={20} />
-                    <p className="font-semibold">{error}</p>
-                  </div>
-                )}
-
-                {lastGenerated && (
-                  <div className="mb-8 p-6 glass border-green-500/20 rounded-[2rem] animate-in zoom-in-95 duration-300">
-                    <div className="flex items-center gap-2 text-green-400 mb-2">
-                      <CheckCircle2 size={16} />
-                      <span className="text-xs font-bold uppercase tracking-widest">Generación Exitosa</span>
-                    </div>
-                    <p className="text-lg italic text-white/80 leading-relaxed font-medium">"{lastGenerated}"</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-                  {/* Tarjeta 1: Control de Riesgo */}
-                  <GlassCard title="Control de Riesgo" icon={Activity}>
-                    <div className="space-y-8">
-                      <div className="grid grid-cols-3 gap-2">
-                        {[RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH].map(level => (
-                          <button
-                            key={level}
-                            onClick={() => setRiskLevel(level)}
-                            className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${riskLevel === level
-                              ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
-                              : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
-                              }`}
-                          >
-                            {level}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-end">
-                          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Uso Diario</span>
-                          <span className="text-3xl font-black text-white">{usedToday} <span className="text-white/20 text-sm">/ {currentLimit}</span></span>
-                        </div>
-                        <div className="h-4 w-full bg-white/5 rounded-full p-1 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-neon rounded-full transition-all duration-1000 ease-out"
-                            style={{ width: `${progressPercentage}%` }}
-                          ></div>
-                        </div>
-                        <button
-                          onClick={() => setUsedToday(0)}
-                          className="text-[10px] font-bold text-white/20 hover:text-white/50 transition-colors flex items-center gap-2 mx-auto"
-                        >
-                          <RotateCcw size={12} /> REINICIAR CONTADOR
-                        </button>
-                      </div>
-                    </div>
-                  </GlassCard>
-
-                  {/* Tarjeta 2: Personalidad */}
-                  <GlassCard title="Personalidad IA" icon={UserCircle}>
-                    <div className="flex flex-col h-full space-y-4">
-                      <p className="text-sm text-white/40 font-medium">Define cómo debe sonar tu voz digital.</p>
-                      <textarea
-                        value={personality}
-                        onChange={(e) => setPersonality(e.target.value)}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder:text-white/10"
-                        placeholder="Ej: Directivo senior, irónico pero constructivo..."
-                      />
-                      <button
-                        onClick={handleSaveSettings}
-                        className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                      >
-                        <Save size={16} /> Guardar Configuración
-                      </button>
-                    </div>
-                  </GlassCard>
-
-                  {/* Tarjeta 3: Seguridad Renovada */}
-                  <GlassCard title="Conexión Extension" icon={ShieldCheck}>
-                    <div className="space-y-6">
-                      <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">TU CLAVE DE LICENCIA</span>
-                          <div className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">
-                            PARA LA EXTENSIÓN
-                          </div>
-                        </div>
-                        {/* Display License Key */}
-                        <div className="flex items-center gap-2">
-                          <code className="flex-1 bg-black/20 p-2 rounded-lg text-xs font-mono text-white/80 break-all select-all">
-                            {licenseKey || "Cargando..."}
-                          </code>
-                          <button
-                            onClick={() => navigator.clipboard.writeText(licenseKey)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
-                            title="Copiar"
-                          >
-                            <Save size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="text-[10px] text-white/30 uppercase tracking-widest">Estado</p>
-                          <div className="flex items-center gap-1.5 text-green-400 text-[10px] font-bold">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> ACTIVO
-                          </div>
-                        </div>
-                        <p className="text-xs text-white/60">IP Vinculada: <strong>{currentIp}</strong></p>
-                      </div>
-                    </div>
-                  </GlassCard>
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-            {/* Profile View Content */}
-            <div className="flex items-center gap-4 mb-8">
-              <button
-                onClick={() => setView('dashboard')}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-              >
-                <ChevronRight className="rotate-180" size={24} />
-              </button>
-              <h1 className="text-4xl font-extrabold tracking-tight">Tu Cuenta</h1>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-6">
-                <GlassCard title="Perfil" icon={UserCircle}>
-                  <div className="text-center space-y-4">
-                    <div className="relative w-24 h-24 mx-auto group cursor-pointer">
-                      <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <span className="text-xs font-bold text-white">CAMBIAR</span>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-20"
-                      />
-                      <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
-                        <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
-                          <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xl font-bold">{userName}</h3>
-                      <p className="text-sm text-white/40">{session?.user?.email}</p>
-                    </div>
-                  </div>
-                </GlassCard>
-
-                <div className="glass rounded-[2rem] p-6 space-y-4">
-                  <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
-                  <div className="flex justify-between py-3 border-b border-white/5">
-                    <span className="text-sm text-white/60 font-medium">Total Generado</span>
-                    <span className="text-sm font-bold">{totalUsage}</span>
-                  </div>
-
-                  <div className="flex justify-between py-3">
-                    <span className="text-sm text-white/60 font-medium">Miembro desde</span>
-                    <span className="text-sm font-bold capitalize">{memberSince}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-2">
-                <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
-                  <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                        <History size={20} />
-                      </div>
-                      <h3 className="text-xl font-bold">Historial de Generaciones</h3>
-                    </div>
-                    <button
-                      onClick={() => setHistory([])}
-                      className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
-                    >
-                      LIMPIAR TODO
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {history.length === 0 ? (
-                      <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
-                        <Activity size={48} />
-                        <p className="font-bold uppercase tracking-widest text-sm">Sin actividad reciente</p>
-                      </div>
-                    ) : (
-                      history.map((item) => (
-                        <div key={item.id} className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all group">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
-                              <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
-                            </div>
-                            <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                          <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
-                            "{item.comment}"
-                            <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                              <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors">
-                                <ExternalLink size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <main className="max-w-[1200px] mx-auto px-6 pt-32 pb-20">
+        {children}
       </main>
-
-      {/* Background Decor */}
-      <div className="fixed bottom-0 right-0 p-10 pointer-events-none opacity-20">
-        <div className="text-8xl font-black tracking-tighter text-white/5 select-none">
-          INGENIA
-        </div>
-      </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default App;

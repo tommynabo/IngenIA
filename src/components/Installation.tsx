@@ -1,0 +1,95 @@
+import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../services/supabaseClient';
+
+export const Installation: React.FC = () => {
+    const [userAvatar, setUserAvatar] = useState('https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
+    const [userName, setUserName] = useState('Usuario');
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user?.id) {
+                supabase.from('user_profiles').select('*').eq('id', session.user.id).single()
+                    .then(({ data }) => {
+                        if (data) {
+                            if (data.avatar_url) setUserAvatar(data.avatar_url);
+                            if (data.full_name) setUserName(data.full_name);
+                        }
+                    });
+            }
+        });
+    }, []);
+
+    const steps = [
+        {
+            title: "1. Descarga el Archivo",
+            desc: "Obtén el paquete ZIP con la última versión de IngenIA.",
+            action: (
+                <a href="/ingenia.zip" download className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-neon rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity">
+                    <Download size={16} /> Descargar ingenia.zip
+                </a>
+            ),
+            img: "install_step1.png" // Placeholder or actual image path
+        },
+        {
+            title: "2. Activa el Modo Desarrollador",
+            desc: "Ve a `chrome://extensions` y activa el interruptor en la esquina superior derecha.",
+            action: (
+                <button onClick={() => window.open('chrome://extensions')} className="text-xs text-blue-400 underline decoration-blue-400/30 underline-offset-2">
+                    Abrir Extensiones
+                </button>
+            ),
+            img: "install_step2.png"
+        },
+        {
+            title: "3. Carga la Extensión",
+            desc: "Haz clic en 'Cargar descomprimida' y selecciona la carpeta que acabas de descargar (¡descomprímela primero!).",
+            img: "install_step3.png"
+        },
+        {
+            title: "4. ¡Listo para Usar!",
+            desc: "Abre LinkedIn y verás el icono de IngenIA listo para ayudarte.",
+            img: "install_step4.png"
+        }
+    ];
+
+    return (
+        <div className="max-w-[800px] mx-auto">
+            <div className="text-center mb-16 space-y-4">
+                <h1 className="text-5xl font-extrabold tracking-tight">Instalación Rápida</h1>
+                <p className="text-white/40 text-lg">Configura tu motor de ingenio en menos de 2 minutos.</p>
+            </div>
+
+            <div className="space-y-12 relative before:absolute before:left-[19px] before:top-10 before:bottom-10 before:w-0.5 before:bg-gradient-to-b before:from-blue-500 before:to-purple-500 before:opacity-30">
+                {steps.map((step, idx) => (
+                    <div key={idx} className="relative pl-16 group">
+                        {/* Step Indicator */}
+                        <div className="absolute left-0 top-0 w-10 h-10 rounded-full bg-[#050508] border-2 border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-sm group-hover:border-blue-500 group-hover:scale-110 transition-all z-10 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
+                            {idx + 1}
+                        </div>
+
+                        <div className="glass p-8 rounded-3xl border border-white/5 hover:border-white/10 transition-all">
+                            <div className="flex flex-col md:flex-row gap-8 items-start">
+                                <div className="flex-1 space-y-4">
+                                    <h3 className="text-xl font-bold">{step.title}</h3>
+                                    <p className="text-white/60 leading-relaxed text-sm">{step.desc}</p>
+                                    {step.action && <div className="pt-2">{step.action}</div>}
+                                </div>
+                                <div className="w-full md:w-48 aspect-video bg-black/40 rounded-xl border border-white/5 flex items-center justify-center text-white/20">
+                                    {/* Placeholder for image */}
+                                    <span className="text-xs font-mono">IMG: {step.img}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-16 text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-400 text-sm font-bold border border-green-500/20">
+                    <CheckCircle2 size={16} /> Una vez instalada, abre LinkedIn y recarga.
+                </div>
+            </div>
+        </div>
+    );
+}
