@@ -11,11 +11,12 @@ export interface UserStats {
   licenseActive: boolean;
   licenseKey: string;
   personality: string;
+  lastResetDate?: string; // ISO Date string
 }
 
 export interface GenerationHistoryRecord {
   id: string;
-  timestamp: Date;
+  timestamp: Date | string; // Allow string from DB
   postSnippet: string;
   comment: string;
 }

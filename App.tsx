@@ -250,6 +250,68 @@ const Dashboard: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- History Logic ---
+  const fetchHistory = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('generation_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      if (data) {
+        setHistory(data.map(item => ({
+          id: item.id,
+          timestamp: item.created_at,
+          postSnippet: item.post_snippet,
+          comment: item.comment
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    }
+  };
+
+  // --- Risk Reset Logic ---
+  const checkDailyReset = async (userId: string, currentSettings: any) => {
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    // Logic: The "current business day" starts at 8 AM.
+    // If it's before 8 AM, we are still in "yesterday's" cycle.
+    // If it's after 8 AM, we are in "today's" cycle.
+
+    let cycleDate = new Date(now);
+    if (currentHour < 8) {
+      cycleDate.setDate(cycleDate.getDate() - 1);
+    }
+    // Normalize to YYYY-MM-DD
+    const dateString = cycleDate.toISOString().split('T')[0];
+
+    // If never reset, or stored reset date is different from calculated cycle date
+    if (!currentSettings.last_reset_date || currentSettings.last_reset_date !== dateString) {
+      console.log("Resetting daily usage...", dateString);
+
+      const { error } = await supabase
+        .from('user_settings')
+        .update({
+          daily_usage: 0,
+          last_reset_date: dateString
+        })
+        .eq('user_id', userId);
+
+      if (!error) {
+        setUsedToday(0);
+        // Refresh settings locally
+        currentSettings.daily_usage = 0;
+        currentSettings.last_reset_date = dateString;
+      }
+    }
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -272,6 +334,9 @@ const Dashboard: React.FC = () => {
         setUsedToday(settings.daily_usage || 0);
         setTotalUsage(settings.total_usage || 0);
         setPersonality(settings.persona_prompt || personality);
+
+        // Check for 8 AM reset
+        await checkDailyReset(userId, settings);
       } else {
         // Create default settings if missing (should be handled by trigger, but just in case)
       }
@@ -293,6 +358,9 @@ const Dashboard: React.FC = () => {
       } else {
         setLicenseKey("No encontrada. Contacta soporte.");
       }
+
+      // Fetch History
+      fetchHistory(userId);
 
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -344,13 +412,46 @@ const Dashboard: React.FC = () => {
         setLastGenerated(response.comment);
         setUsedToday(prev => prev + 1);
 
-        const newRecord: GenerationHistoryRecord = {
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-          postSnippet: "AI transparency is crucial...",
-          comment: response.comment
-        };
-        setHistory(prev => [newRecord, ...prev]);
+        // Persist to DB
+        const { data: savedRecord } = await supabase
+          .from('generation_history')
+          .insert({
+            user_id: session.user.id,
+            post_snippet: "AI transparency is crucial...", // In real app, this comes from input
+            comment: response.comment
+          })
+          .select()
+          .single();
+
+        if (savedRecord) {
+          setHistory(prev => [{
+            id: savedRecord.id,
+            timestamp: savedRecord.created_at,
+            postSnippet: savedRecord.post_snippet,
+            comment: savedRecord.comment
+          }, ...prev]);
+        } else {
+          // Fallback local update if DB insert fails (graceful degradation)
+          const newRecord: GenerationHistoryRecord = {
+            id: Math.random().toString(36).substr(2, 9),
+            timestamp: new Date(),
+            postSnippet: "AI transparency is crucial...",
+            comment: response.comment
+          };
+          setHistory(prev => [newRecord, ...prev]);
+        }
+
+        // Update Usage Stats in DB
+        const newUsage = usedToday + 1;
+        await supabase
+          .from('user_settings')
+          .update({
+            daily_usage: newUsage,
+            total_usage: totalUsage + 1
+          })
+          .eq('user_id', session.user.id);
+
+        setTotalUsage(prev => prev + 1);
       } else {
         setError(response.error || "Error desconocido");
       }
@@ -392,7 +493,7 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-[#020205] text-white">
       {/* Header */}
       <nav className="glass sticky top-0 z-[100] border-b border-white/5 py-4 px-6 mb-8">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <div className="flex items-center gap-8">
             <div className="text-2xl font-extrabold tracking-tighter">
               ingen<span className="text-blue-500">IA</span>
@@ -439,7 +540,7 @@ const Dashboard: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 pb-20">
+      <main className="max-w-[1200px] mx-auto px-6 pb-20">
         {view === 'dashboard' ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-12">
@@ -650,7 +751,7 @@ const Dashboard: React.FC = () => {
                               <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
                               <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
                             </div>
-                            <span className="text-[10px] text-white/20 font-medium">{item.timestamp.toLocaleTimeString()}</span>
+                            <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
                           </div>
                           <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
                             "{item.comment}"

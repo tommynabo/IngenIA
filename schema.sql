@@ -66,6 +66,27 @@ create policy "Users can view their own settings" on public.user_settings
 create policy "Users can update their own settings" on public.user_settings
   for update using (auth.uid() = user_id);
 
+-- 4. Table: generation_history
+create table public.generation_history (
+  id uuid not null default uuid_generate_v4() primary key,
+  user_id uuid not null references public.user_profiles(id) on delete cascade,
+  post_snippet text,
+  comment text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS for generation_history
+alter table public.generation_history enable row level security;
+
+create policy "Users can view their own history" on public.generation_history
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own history" on public.generation_history
+  for insert with check (auth.uid() = user_id);
+
+-- Update user_settings schema (Migration simulation)
+-- ALTER TABLE public.user_settings ADD COLUMN last_reset_date date;
+
 -- Function to handle new user creation
 create or replace function public.handle_new_user()
 returns trigger as $$
@@ -74,8 +95,8 @@ begin
   values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
   
   -- Create default settings
-  insert into public.user_settings (user_id, daily_limit, total_usage)
-  values (new.id, 50, 0); 
+  insert into public.user_settings (user_id, daily_limit, total_usage, last_reset_date)
+  values (new.id, 50, 0, current_date); 
   
   -- Create default ACTIVE license (so they can use it immediately)
   insert into public.licenses (user_id, status)
