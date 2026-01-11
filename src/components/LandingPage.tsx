@@ -113,7 +113,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         );
     }
 
-    // Hero / Landing View
+
+
+    // ... (keep Login view)
+
+    const [showPlanModal, setShowPlanModal] = useState(false);
+    const [showCouponInput, setShowCouponInput] = useState(false);
+
+    // ... (keep existing login logic)
+
+    const handleSubscribe = async (interval: 'month' | 'year') => {
+        setLoading(true);
+        try {
+            const response = await fetch('/api/create-connect-checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    billingInterval: interval,
+                    // No email known yet, Stripe will ask
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert('Error al iniciar: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Error de conexión');
+        } finally {
+            setLoading(false);
+            setShowPlanModal(false);
+        }
+    };
+
+    // ... (keep Login view)
+
+    // Hero View
     return (
         <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30 overflow-x-hidden">
             {/* Navbar */}
@@ -162,12 +201,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                     Sin compromiso. 3 Días de Prueba.
                                 </p>
 
-                                <a
-                                    href="https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08"
+                                {/* Simple Button triggers Modal */}
+                                <button
+                                    onClick={() => setShowPlanModal(true)}
                                     className="w-full py-4 bg-white text-black rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/10"
                                 >
                                     Empezar Prueba Gratis <ArrowRight size={20} />
-                                </a>
+                                </button>
 
                                 <p className="text-[10px] text-white/20 font-medium">
                                     Pagos seguros vía Stripe.
@@ -178,6 +218,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
                     {/* Visual / Mockup */}
                     <div className="relative hidden lg:block perspective-1000">
+                        {/* ... (Keep existing Mockup code) ... */}
                         <div className="relative z-10 transform rotate-y-[-10deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
                             <div className="glass rounded-3xl p-6 border border-white/10 shadow-2xl bg-[#050508]/50 backdrop-blur-xl">
                                 {/* Fake UI Mockup */}
@@ -233,9 +274,83 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                 </div>
             </div>
 
+            {/* Plan Selection Modal */}
+            {showPlanModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-lg bg-[#0a0a0f] border border-white/10 rounded-3xl shadow-2xl relative overflow-hidden">
+                        <button
+                            onClick={() => setShowPlanModal(false)}
+                            className="absolute top-4 right-4 p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-full transition-all"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="p-8 text-center">
+                            <h2 className="text-3xl font-black mb-2 tracking-tight">Elige tu Plan</h2>
+                            <p className="text-white/50 mb-8">Ambos incluyen 3 días de prueba gratis.</p>
+
+                            <div className="grid gap-4">
+                                <button
+                                    onClick={() => handleSubscribe('month')}
+                                    disabled={loading}
+                                    className="group relative p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 transition-all text-left flex items-center justify-between"
+                                >
+                                    <div>
+                                        <div className="text-sm font-bold text-blue-400 mb-1">MENSUAL</div>
+                                        <div className="text-2xl font-bold">10€ <span className="text-sm text-white/40 font-normal">/ mes</span></div>
+                                    </div>
+                                    {loading ? <Loader2 className="animate-spin text-white/20" /> : <ArrowRight className="text-white/20 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />}
+                                </button>
+
+                                <button
+                                    onClick={() => handleSubscribe('year')}
+                                    disabled={loading}
+                                    className="group relative p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50 transition-all text-left flex items-center justify-between"
+                                >
+                                    <div className="absolute -top-3 -right-3 bg-gradient-neon px-3 py-1 rounded-full text-[10px] font-bold shadow-lg rotate-3">
+                                        AHORRA 2 MESES
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-purple-400 mb-1">ANUAL</div>
+                                        <div className="text-2xl font-bold">120€ <span className="text-sm text-white/40 font-normal">/ año</span></div>
+                                    </div>
+                                    {loading ? <Loader2 className="animate-spin text-white/20" /> : <ArrowRight className="text-white/20 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />}
+                                </button>
+                            </div>
+
+                            {/* Subtle Coupon Input */}
+                            <div className="mt-6">
+                                {!showCouponInput ? (
+                                    <button
+                                        onClick={() => setShowCouponInput(true)}
+                                        className="text-[10px] text-white/20 hover:text-white/40 underline decoration-white/20 transition-all font-medium uppercase tracking-widest"
+                                    >
+                                        ¿Tienes un código?
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                                        <input
+                                            type="text"
+                                            placeholder="CÓDIGO"
+                                            className="bg-transparent border-b border-white/10 text-center text-xs py-1 w-32 focus:outline-none focus:border-white/40 transition-colors uppercase placeholder:text-white/10"
+                                            onChange={(e) => {
+                                                if (e.target.value === 'INGENIAESLOMEJOR2026') {
+                                                    alert("¡Código Lifetime detectado! Introdúcelo en la siguiente pantalla de pago.");
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Legal Modals */}
             {(showPrivacy || showCookies) && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    {/* ... (Same as before) ... */}
                     <div className="w-full max-w-2xl bg-[#0a0a0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
                             <h3 className="font-bold text-lg flex items-center gap-2">

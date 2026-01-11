@@ -240,30 +240,81 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
 };
 
 // Paywall Component
-const Paywall: React.FC<{ session: any }> = ({ session }) => (
-  <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-4">
-    <div className="max-w-md w-full glass p-12 rounded-[3rem] border-blue-500/20 text-center space-y-8 animate-in zoom-in-95 duration-500 relative overflow-hidden">
-      <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="relative z-10">
-        <div className="w-20 h-20 bg-blue-500/10 rounded-full text-blue-400 mx-auto flex items-center justify-center mb-6 animate-pulse">
-          <Loader2 size={40} />
-        </div>
-        <h2 className="text-4xl font-black tracking-tighter">Completa tu Acceso</h2>
-        <p className="text-white/50 text-lg">Para acceder al panel y activar tu licencia, completa tu suscripción de prueba.</p>
+const Paywall: React.FC<{ session: any }> = ({ session }) => {
+  const [loading, setLoading] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
 
-        <a
-          href={`https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(session?.user?.email || '')}`}
-          className="w-full py-4 bg-gradient-neon rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
-        >
-          Activar Prueba Gratis
-        </a>
-        <button onClick={() => supabase.auth.signOut()} className="text-sm text-white/30 hover:text-white mt-4 underline decoration-white/30 underline-offset-4">
-          Cerrar Sesión
-        </button>
+  const handleSubscribe = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/create-connect-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: session?.user?.email,
+          billingInterval,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Error al iniciar el pago: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Hubo un error al conectar con la pasarela de pago.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#050508] text-white flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full glass p-12 rounded-[3rem] border-blue-500/20 text-center space-y-8 animate-in zoom-in-95 duration-500 relative overflow-hidden">
+        <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="relative z-10">
+          <div className="w-20 h-20 bg-blue-500/10 rounded-full text-blue-400 mx-auto flex items-center justify-center mb-6 animate-pulse">
+            <Loader2 size={40} />
+          </div>
+          <h2 className="text-4xl font-black tracking-tighter">Completa tu Acceso</h2>
+          <p className="text-white/50 text-lg">Para acceder al panel y activar tu licencia, elige tu plan.</p>
+
+          <div className="bg-white/5 p-1 rounded-xl flex items-center justify-center mb-4 border border-white/10">
+            <button
+              onClick={() => setBillingInterval('month')}
+              className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${billingInterval === 'month' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
+            >
+              Mensual (10€)
+            </button>
+            <button
+              onClick={() => setBillingInterval('year')}
+              className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${billingInterval === 'year' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
+            >
+              Anual (120€)
+            </button>
+          </div>
+
+          <button
+            onClick={handleSubscribe}
+            disabled={loading}
+            className="w-full py-4 bg-gradient-neon rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : 'Iniciar 3 Días Gratis'}
+          </button>
+
+          <button onClick={() => supabase.auth.signOut()} className="text-sm text-white/30 hover:text-white mt-4 underline decoration-white/30 underline-offset-4">
+            Cerrar Sesión
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Layout for Authenticated Views
 const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, userAvatar: string, userName: string, licenseStatus: string }> = ({ children, session, userAvatar, userName, licenseStatus }) => {
