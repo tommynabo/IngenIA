@@ -26,10 +26,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let event: Stripe.Event;
 
     try {
-        // Note: req.body must be raw buffer for signature verification.
-        // In Vercel serverless functions, req.body is already parsed JSON by default unless config changed.
-        // If issues arise, we might need 'raw-body' package or config change.
-        // For now assuming standard implementation.
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err: any) {
         console.error(`Webhook Error: ${err.message}`);
@@ -41,34 +37,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const customerEmail = session.customer_details?.email; // Or session.customer_email
 
         if (customerEmail) {
-            // 1. Find user by email (using service role to bypass RLS)
-            // Note: Supabase Auth table isn't directly queryable via public API usually, 
-            // but we can query our 'user_profiles' table since it mirrors emails.
+            // 1. Try to find existing user
             const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
                 .select('id')
                 .eq('email', customerEmail)
                 .single();
 
-            if (profileError || !profiles) {
-                console.error('User not found for email:', customerEmail);
-                return res.status(404).json({ error: 'User not found' });
+            if (profiles && profiles.id) {
+                // EXISTING USER: Activate License
+                const { error: updateError } = await supabase
+                    .from('licenses')
+                    .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() }) // 3 days trial
+                    .eq('user_id', profiles.id);
+
+                if (updateError) console.error('Error activating license for existing user:', updateError);
+                else console.log(`License activated for existing user: ${profiles.id}`);
+
+            } else {
+                // NEW USER: Add to Pre-Paid Waiting Room
+                const { error: insertError } = await supabase
+                    .from('pre_paid_licenses')
+                    .upsert({ email: customerEmail, status: 'paid' }, { onConflict: 'email' });
+
+                if (insertError) console.error('Error adding to pre-paid list:', insertError);
+                else console.log(`Added email to pre-paid licenses: ${customerEmail}`);
             }
-
-            const userId = profiles.id;
-
-            // 2. Activate License
-            const { error: updateError } = await supabase
-                .from('licenses')
-                .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() }) // 3 days trial
-                .eq('user_id', userId);
-
-            if (updateError) {
-                console.error('Error updating license:', updateError);
-                return res.status(500).json({ error: 'Database update failed' });
-            }
-
-            console.log(`License activated for user: ${userId}`);
         }
     }
 

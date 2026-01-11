@@ -89,17 +89,23 @@ create policy "Users can view their own history" on public.generation_history
 create policy "Users can insert their own history" on public.generation_history
   for insert with check (auth.uid() = user_id);
 
--- Update user_settings schema (Migration simulation)
-
+-- 5. Table: pre_paid_licenses (Waiting Room for new users)
+create table public.pre_paid_licenses (
+    email text primary key,
+    status text default 'paid',
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+-- No RLS needed as this is server-side only (Service Role)
 
 -- Function to handle new user creation
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  is_prepaid boolean;
 begin
   insert into public.user_profiles (id, email, full_name, avatar_url)
   values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
   
-  -- Create default settings
   -- Create default settings
   insert into public.user_settings (user_id, daily_limit, total_usage, last_reset_date, persona_prompt)
   values (new.id, 50, 0, current_date, $prompt$# ROL
@@ -138,9 +144,18 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
 ## INPUT DEL USUARIO
 [PEGAR AQUÍ EL POST DE LINKEDIN]$prompt$); 
   
-  -- Create default license INACTIVE (Paywall)
-  insert into public.licenses (user_id, status)
-  values (new.id, 'inactive');
+  -- Check if user has pre-paid
+  select exists(select 1 from public.pre_paid_licenses where email = new.email) into is_prepaid;
+
+  if is_prepaid then
+      -- Active License
+      insert into public.licenses (user_id, status) values (new.id, 'active');
+      -- Optional: Clean up waiting room (or keep for records)
+      -- delete from public.pre_paid_licenses where email = new.email; 
+  else
+      -- Inactive License (Paywall)
+      insert into public.licenses (user_id, status) values (new.id, 'inactive');
+  end if;
 
   return new;
 end;
