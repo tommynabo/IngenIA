@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { Loader2, ArrowRight, CheckCircle2, Star } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle2, Star, X, FileText } from 'lucide-react';
 
 interface LandingPageProps {
     onLoginSuccess: (session: any) => void;
@@ -12,6 +12,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'landing' | 'login'>('landing'); // 'landing' = Hero+Register, 'login' = Login Only
+    const [showPrivacy, setShowPrivacy] = useState(false);
+    const [showCookies, setShowCookies] = useState(false);
 
     const handleRegisterAndRedirect = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -248,6 +250,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     </div>
                 </div>
             </div>
+            {/* Footer */}
+            <div className="border-t border-white/5 bg-[#050508] py-8 mt-20">
+                <div className="max-w-[1200px] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-xs text-white/20 font-medium">© 2024 IngenIA. Todos los derechos reservados.</p>
+                    <div className="flex gap-6">
+                        <button onClick={() => setShowPrivacy(true)} className="text-xs text-white/20 hover:text-white/40 transition-colors">Política de Privacidad</button>
+                        <button onClick={() => setShowCookies(true)} className="text-xs text-white/20 hover:text-white/40 transition-colors">Política de Cookies</button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Legal Modals */}
+            {(showPrivacy || showCookies) && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-2xl bg-[#0a0a0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                <FileText size={18} className="text-blue-400" />
+                                {showPrivacy ? 'Política de Privacidad' : 'Política de Cookies'}
+                            </h3>
+                            <button onClick={() => { setShowPrivacy(false); setShowCookies(false); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-8 overflow-y-auto text-sm text-white/60 space-y-4 leading-relaxed">
+                            {showPrivacy ? (
+                                <>
+                                    <p><strong>1. Responsable del Tratamiento:</strong> IngenIA Software, con domicilio en España.</p>
+                                    <p><strong>2. Finalidad:</strong> Gestionar el registro, la prestación del servicio y la facturación.</p>
+                                    <p><strong>3. Legitimación:</strong> Ejecución del contrato y consentimiento del interesado.</p>
+                                    <p><strong>4. Destinatarios:</strong> No se cederán datos a terceros, salvo obligación legal o proveedores de servicios (como Stripe/Supabase).</p>
+                                    <p><strong>5. Derechos:</strong> Acceder, rectificar y suprimir los datos, así como otros derechos, como se explica en la información adicional.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p><strong>1. Qué son las cookies:</strong> Ficheros que se descargan en su dispositivo al acceder a determinadas páginas web.</p>
+                                    <p><strong>2. Tipos de cookies:</strong> Utilizamos cookies técnicas (necesarias para el funcionamiento) y de análisis (para medir el uso de la web).</p>
+                                    <p><strong>3. Desactivación:</strong> Puede configurar su navegador para bloquearlas, aunque algunos servicios podrían no funcionar correctamente.</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
