@@ -152,54 +152,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                             Genera contenido de alto impacto para LinkedIn en segundos. Gestiona tu marca personal y ahorra horas cada semana con IA.
                         </p>
 
-                        {/* Register Form / CTA */}
+                        {/* CTA Section (No Form) */}
                         <div className="p-1 rounded-[2rem] bg-gradient-to-r from-blue-500/30 to-purple-500/30 lg:max-w-md">
-                            <div className="bg-[#0a0a0f] rounded-[1.8rem] p-6 border border-white/10">
-                                <form onSubmit={handleRegisterAndRedirect} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Nombre Completo</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
-                                            placeholder="Ej. Juan Pérez"
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Email Profesional</label>
-                                        <input
-                                            type="email"
-                                            required
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="juan@empresa.com"
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Contraseña</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="Crear contraseña"
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                                        />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full py-4 bg-white text-black rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/10"
-                                    >
-                                        {loading ? <Loader2 className="animate-spin" /> : <>Empezar Prueba Gratis <ArrowRight size={20} /></>}
-                                    </button>
-                                    <p className="text-center text-[10px] text-white/20 font-medium pt-2">
-                                        Sin compromiso. Cancela cuando quieras.
-                                    </p>
-                                </form>
+                            <div className="bg-[#0a0a0f] rounded-[1.8rem] p-8 border border-white/10 text-center space-y-6">
+                                <h3 className="text-xl font-bold">¿Listo para despegar?</h3>
+                                <p className="text-white/50 text-sm">
+                                    Obtén acceso inmediato al panel y herramientas.
+                                    <br />
+                                    Sin compromiso. 3 Días de Prueba.
+                                </p>
+
+                                <a
+                                    href="https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08"
+                                    className="w-full py-4 bg-white text-black rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/10"
+                                >
+                                    Empezar Prueba Gratis <ArrowRight size={20} />
+                                </a>
+
+                                <p className="text-[10px] text-white/20 font-medium">
+                                    Pagos seguros vía Stripe.
+                                </p>
                             </div>
                         </div>
                     </div>

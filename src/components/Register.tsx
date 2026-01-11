@@ -1,15 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { Loader2, ArrowRight, User, Mail, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const Register: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [isEmailLocked, setIsEmailLocked] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const emailParam = params.get('email');
+        const nameParam = params.get('name') || params.get('full_name');
+
+        if (emailParam) {
+            setEmail(emailParam);
+            setIsEmailLocked(true);
+        }
+        if (nameParam) {
+            setFullName(nameParam);
+        }
+    }, [location]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,14 +45,10 @@ export const Register: React.FC = () => {
             if (error) throw error;
 
             if (data.session) {
-                // Initial check - The trigger should have set the status based on payment.
-                // We'll redirect to /panel and let the App's AuthGuard handle the rest (locking if inactive).
                 navigate('/panel');
             } else {
-                // Should not happen with email/password unless email confirm is on. 
-                // Assuming email confirm is OFF for this flow or they need to confirm.
-                // If confirm is ON, show message. But user wanted simplification.
-                alert('Registro completado. Si se requiere confirmación, revisa tu correo.');
+                alert('Registro completado. Accede al login.');
+                navigate('/');
             }
 
         } catch (err: any) {
@@ -81,8 +94,9 @@ export const Register: React.FC = () => {
                                     type="email"
                                     placeholder="Correo Electrónico"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all font-medium"
+                                    onChange={(e) => !isEmailLocked && setEmail(e.target.value)}
+                                    readOnly={isEmailLocked}
+                                    className={`w-full bg-black/20 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-blue-500/50 transition-all font-medium ${isEmailLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     required
                                 />
                             </div>
