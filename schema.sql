@@ -46,6 +46,9 @@ alter table public.licenses enable row level security;
 create policy "Users can view their own license" on public.licenses
   for select using (auth.uid() = user_id);
 
+create policy "Users can update their own license" on public.licenses
+  for update using (auth.uid() = user_id);
+
 -- 3. Table: user_settings
 create type risk_level_enum as enum ('low', 'medium', 'high');
 

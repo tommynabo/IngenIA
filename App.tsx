@@ -375,18 +375,33 @@ La gente comenta para:
 
   // Fetch session and profile on mount
   useEffect(() => {
-    // Check for payment success URL param
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      // Optimistic unlock could happen here, or let the fetchProfile handle it if webhook was fast enough.
-      // For better UX, we might show a Success Modal, but let's rely on data first.
-      // We can force a re-check or show a "Procesando activation..." message.
-    }
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoggedIn(!!session);
-      if (session) fetchProfile(session.user.id);
+      if (session) {
+        // Check for payment success URL param immediately after session is confirmed
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('payment') === 'success') {
+          // Activate License Client-Side
+          supabase
+            .from('licenses')
+            .update({ status: 'active' })
+            .eq('user_id', session.user.id)
+            .then(({ error }) => {
+              if (!error) {
+                // Clear URL param without reload
+                window.history.replaceState({}, '', window.location.pathname);
+                alert("¡Suscripción activada con éxito! Bienvenido.");
+              } else {
+                console.error("Error activating license:", error);
+              }
+              // Fetch profile regardless to update UI
+              fetchProfile(session.user.id);
+            });
+        } else {
+          fetchProfile(session.user.id);
+        }
+      }
     });
 
     const {
@@ -871,120 +886,122 @@ La gente comenta para:
                     </div>
                   </GlassCard>
                 </div>
-              </div>
-            ) : (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="flex items-center gap-4 mb-8">
-                <button
-                  onClick={() => setView('dashboard')}
-                  className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-                >
-                  <ChevronRight className="rotate-180" size={24} />
-                </button>
-                <h1 className="text-4xl font-extrabold tracking-tight">Tu Cuenta</h1>
-              </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            {/* Profile View Content */}
+            <div className="flex items-center gap-4 mb-8">
+              <button
+                onClick={() => setView('dashboard')}
+                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+              >
+                <ChevronRight className="rotate-180" size={24} />
+              </button>
+              <h1 className="text-4xl font-extrabold tracking-tight">Tu Cuenta</h1>
+            </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 space-y-6">
-                  <GlassCard title="Perfil" icon={UserCircle}>
-                    <div className="text-center space-y-4">
-                      <div className="relative w-24 h-24 mx-auto group cursor-pointer">
-                        <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <span className="text-xs font-bold text-white">CAMBIAR</span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-20"
-                        />
-                        <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
-                          <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
-                            <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
-                          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 space-y-6">
+                <GlassCard title="Perfil" icon={UserCircle}>
+                  <div className="text-center space-y-4">
+                    <div className="relative w-24 h-24 mx-auto group cursor-pointer">
+                      <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <span className="text-xs font-bold text-white">CAMBIAR</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                      />
+                      <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
+                        <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
+                          <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
                         </div>
                       </div>
-
-                      <div>
-                        <h3 className="text-xl font-bold">{userName}</h3>
-                        <p className="text-sm text-white/40">{session?.user?.email}</p>
-                      </div>
-                      {/* Hiding Badges as requested */}
-                    </div>
-                  </GlassCard>
-
-                  <div className="glass rounded-[2rem] p-6 space-y-4">
-                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
-                    <div className="flex justify-between py-3 border-b border-white/5">
-                      <span className="text-sm text-white/60 font-medium">Total Generado</span>
-                      <span className="text-sm font-bold">{totalUsage}</span>
                     </div>
 
-                    <div className="flex justify-between py-3">
-                      <span className="text-sm text-white/60 font-medium">Miembro desde</span>
-                      <span className="text-sm font-bold capitalize">{memberSince}</span>
+                    <div>
+                      <h3 className="text-xl font-bold">{userName}</h3>
+                      <p className="text-sm text-white/40">{session?.user?.email}</p>
                     </div>
                   </div>
+                </GlassCard>
+
+                <div className="glass rounded-[2rem] p-6 space-y-4">
+                  <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
+                  <div className="flex justify-between py-3 border-b border-white/5">
+                    <span className="text-sm text-white/60 font-medium">Total Generado</span>
+                    <span className="text-sm font-bold">{totalUsage}</span>
+                  </div>
+
+                  <div className="flex justify-between py-3">
+                    <span className="text-sm text-white/60 font-medium">Miembro desde</span>
+                    <span className="text-sm font-bold capitalize">{memberSince}</span>
+                  </div>
                 </div>
+              </div>
 
-                <div className="lg:col-span-2">
-                  <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
-                    <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                          <History size={20} />
-                        </div>
-                        <h3 className="text-xl font-bold">Historial de Generaciones</h3>
+              <div className="lg:col-span-2">
+                <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
+                  <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+                        <History size={20} />
                       </div>
-                      <button
-                        onClick={() => setHistory([])}
-                        className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
-                      >
-                        LIMPIAR TODO
-                      </button>
+                      <h3 className="text-xl font-bold">Historial de Generaciones</h3>
                     </div>
+                    <button
+                      onClick={() => setHistory([])}
+                      className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
+                    >
+                      LIMPIAR TODO
+                    </button>
+                  </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                      {history.length === 0 ? (
-                        <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
-                          <Activity size={48} />
-                          <p className="font-bold uppercase tracking-widest text-sm">Sin actividad reciente</p>
-                        </div>
-                      ) : (
-                        history.map((item) => (
-                          <div key={item.id} className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all group">
-                            <div className="flex justify-between items-start mb-4">
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
-                                <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
-                              </div>
-                              <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {history.length === 0 ? (
+                      <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
+                        <Activity size={48} />
+                        <p className="font-bold uppercase tracking-widest text-sm">Sin actividad reciente</p>
+                      </div>
+                    ) : (
+                      history.map((item) => (
+                        <div key={item.id} className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all group">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
+                              <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
                             </div>
-                            <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
-                              "{item.comment}"
-                              <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors">
-                                  <ExternalLink size={14} />
-                                </button>
-                              </div>
+                            <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
+                            "{item.comment}"
+                            <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                              <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors">
+                                <ExternalLink size={14} />
+                              </button>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
             </div>
+          </div>
         )}
-          </main>
+      </main>
 
       {/* Background Decor */}
-        <div className="fixed bottom-0 right-0 p-10 pointer-events-none opacity-20">
-          <div className="text-8xl font-black tracking-tighter text-white/5 select-none">
-            INGENIA
-          </div>
+      <div className="fixed bottom-0 right-0 p-10 pointer-events-none opacity-20">
+        <div className="text-8xl font-black tracking-tighter text-white/5 select-none">
+          INGENIA
         </div>
+      </div>
     </div>
   );
 };

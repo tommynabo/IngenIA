@@ -15,8 +15,7 @@
     "lucide-react": "^0.562.0",
     "openai": "^6.15.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "stripe": "^20.1.2"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
