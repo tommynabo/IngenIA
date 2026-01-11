@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle2, Star } from 'lucide-react';
 
 interface LandingPageProps {
     onLoginSuccess: (session: any) => void;
@@ -8,102 +8,232 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
+    const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
-    const [authSent, setAuthSent] = useState(false);
-    const [error, setError] = useState('');
+    const [view, setView] = useState<'landing' | 'login'>('landing'); // 'landing' = Hero+Register, 'login' = Login Only
+
+    const handleRegisterAndRedirect = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            // 1. Trigger Auth (Background)
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    data: { full_name: fullName }, // Save name in metadata
+                    emailRedirectTo: window.location.origin + '/panel',
+                },
+            });
+
+            if (error) {
+                console.error("Auth error:", error);
+                // If error is strictly auth related, we might still want to let them pay? 
+                // But ideally we fix it. For now, log and proceed to Stripe as it's the priority.
+            }
+
+            // 2. Redirect to Stripe
+            // Using the link provided previously with prefilled email
+            const stripeUrl = `https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(email)}`;
+            window.location.href = stripeUrl;
+
+        } catch (err) {
+            console.error(err);
+            setLoading(false);
+        }
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
-
         try {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
-                options: {
-                    emailRedirectTo: window.location.origin + '/panel', // Redirect to panel
-                },
+                options: { emailRedirectTo: window.location.origin + '/panel' },
             });
-
             if (error) throw error;
-            setAuthSent(true);
-        } catch (err: any) {
-            setError(err.message || 'Error al enviar el magic link');
+            alert('¡Enlace de acceso enviado a tu correo!');
+        } catch (error: any) {
+            alert(error.message);
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30 flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Glow Effects */}
-            <div className="fixed top-[-100px] left-[-100px] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
-            <div className="fixed bottom-[-100px] right-[-100px] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+    // Login View (Simple Modal-like or specialized view)
+    if (view === 'login') {
+        return (
+            <div className="min-h-screen bg-[#050508] flex items-center justify-center p-4 relative overflow-hidden">
+                {/* Background Gradients */}
+                <div className="fixed top-[-20%] left-[-10%] w-[70%] h-[70%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+                <div className="fixed bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-            <div className="w-full max-w-md relative z-10">
-                <div className="glass p-8 md:p-12 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
-                    {/* Logo Area */}
-                    <div className="text-center mb-10 relative">
-                        <div className="w-20 h-20 mx-auto bg-gradient-neon rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20 rotate-3 hover:rotate-6 transition-transform duration-500">
-                            <span className="text-4xl">⚡️</span>
+                <div className="w-full max-w-md glass p-8 rounded-3xl border border-white/10 relative z-10 animate-in fade-in zoom-in-95 duration-300">
+                    <button onClick={() => setView('landing')} className="absolute top-6 left-6 text-white/30 hover:text-white text-sm transition-colors">← Volver</button>
+                    <div className="text-center mb-8 mt-4">
+                        <h2 className="text-2xl font-bold mb-2">Acceder a tu Cuenta</h2>
+                        <p className="text-white/40 text-sm">Ingresa tu email para recibir el enlace de acceso.</p>
+                    </div>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="tucorreo@empresa.com"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
                         </div>
-                        <h1 className="text-4xl font-black tracking-tighter mb-2 bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
-                            IngenIA
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2"
+                        >
+                            {loading ? <Loader2 className="animate-spin" /> : "Enviar Enlace Mágico"}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    // Hero / Landing View
+    return (
+        <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30 overflow-x-hidden">
+            {/* Navbar */}
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-[#050508]/80 backdrop-blur-md border-b border-white/5">
+                <div className="max-w-[1200px] mx-auto px-6 h-20 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-neon rounded-lg flex items-center justify-center -rotate-3">
+                            <span className="text-lg">⚡️</span>
+                        </div>
+                        <span className="text-xl font-bold tracking-tight">INGENIA</span>
+                    </div>
+                    <button
+                        onClick={() => setView('login')}
+                        className="px-5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 text-sm font-bold transition-colors"
+                    >
+                        Iniciar Sesión
+                    </button>
+                </div>
+            </nav>
+
+            {/* Hero Section */}
+            <div className="relative pt-32 pb-20 px-6 max-w-[1200px] mx-auto">
+                {/* Decor */}
+                <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-[100px] pointer-events-none z-0"></div>
+
+                <div className="relative z-10 grid lg:grid-cols-2 gap-16 items-center">
+                    <div className="space-y-8 text-center lg:text-left">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">
+                            <Star size={12} fill="currentColor" /> Nueva Versión 2.0
+                        </div>
+                        <h1 className="text-5xl lg:text-7xl font-black tracking-tighter leading-[1.1]">
+                            Tu Copiloto de <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Crecimiento Viral</span>
                         </h1>
-                        <p className="text-white/40 font-medium">Tu copiloto de crecimiento en LinkedIn</p>
+                        <p className="text-xl text-white/50 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                            Genera contenido de alto impacto para LinkedIn en segundos. Gestiona tu marca personal y ahorra horas cada semana con IA.
+                        </p>
+
+                        {/* Register Form / CTA */}
+                        <div className="p-1 rounded-[2rem] bg-gradient-to-r from-blue-500/30 to-purple-500/30 lg:max-w-md">
+                            <div className="bg-[#0a0a0f] rounded-[1.8rem] p-6 border border-white/10">
+                                <form onSubmit={handleRegisterAndRedirect} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Nombre Completo</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            placeholder="Ej. Juan Pérez"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Email Profesional</label>
+                                        <input
+                                            type="email"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="juan@empresa.com"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full py-4 bg-white text-black rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/10"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" /> : <>Empezar Prueba Gratis <ArrowRight size={20} /></>}
+                                    </button>
+                                    <p className="text-center text-[10px] text-white/20 font-medium pt-2">
+                                        Sin compromiso. Cancela cuando quieras.
+                                    </p>
+                                </form>
+                            </div>
+                        </div>
                     </div>
 
-                    {authSent ? (
-                        <div className="text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
-                            <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <h3 className="text-xl font-bold">¡Revisa tu correo!</h3>
-                            <p className="text-white/60 text-sm leading-relaxed">
-                                Hemos enviado un enlace mágico a <span className="text-white font-bold">{email}</span>.
-                                <br />Haz clic para entrar automáticamente.
-                            </p>
-                            <button
-                                onClick={() => setAuthSent(false)}
-                                className="text-xs text-white/30 hover:text-white underline decoration-white/30 underline-offset-4 transition-colors"
-                            >
-                                Usar otro correo
-                            </button>
-                        </div>
-                    ) : (
-                        <form onSubmit={handleLogin} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-white/30 uppercase tracking-widest ml-1">Email Profesional</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="tucorreo@empresa.com"
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
-                                />
-                            </div>
-
-                            {error && (
-                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold text-center">
-                                    {error}
+                    {/* Visual / Mockup */}
+                    <div className="relative hidden lg:block perspective-1000">
+                        <div className="relative z-10 transform rotate-y-[-10deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
+                            <div className="glass rounded-3xl p-6 border border-white/10 shadow-2xl bg-[#050508]/50 backdrop-blur-xl">
+                                {/* Fake UI Mockup */}
+                                <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+                                    <div className="flex gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-red-500/20"></div>
+                                        <div className="w-3 h-3 rounded-full bg-yellow-500/20"></div>
+                                        <div className="w-3 h-3 rounded-full bg-green-500/20"></div>
+                                    </div>
+                                    <div className="h-2 w-20 bg-white/10 rounded-full"></div>
                                 </div>
-                            )}
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-4 bg-gradient-neon text-white rounded-2xl font-bold text-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
-                            >
-                                {loading ? <Loader2 className="animate-spin" size={24} /> : "Empezar prueba gratis de 3 días"}
-                            </button>
-                        </form>
-                    )}
+                                <div className="space-y-4">
+                                    <div className="flex gap-4">
+                                        <div className="w-1/3 space-y-3">
+                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse"></div>
+                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse delay-75"></div>
+                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse delay-150"></div>
+                                        </div>
+                                        <div className="w-2/3 bg-white/5 rounded-2xl h-80 p-4 border border-white/5 relative overflow-hidden group">
+                                            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050508] to-transparent z-10"></div>
+                                            <div className="space-y-3 opacity-50">
+                                                <div className="h-4 w-3/4 bg-white/10 rounded"></div>
+                                                <div className="h-4 w-1/2 bg-white/10 rounded"></div>
+                                                <div className="h-4 w-full bg-white/10 rounded"></div>
+                                                <div className="h-4 w-5/6 bg-white/10 rounded"></div>
+                                            </div>
+                                            {/* Floating Element */}
+                                            <div className="absolute bottom-8 right-8 left-8 bg-[#0a0a0f] p-4 rounded-xl border border-white/10 shadow-xl z-20 flex items-center gap-3 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                                                <div className="p-2 bg-green-500/20 text-green-400 rounded-lg"><CheckCircle2 size={16} /></div>
+                                                <div>
+                                                    <div className="text-xs text-white/40 font-bold uppercase">Estado</div>
+                                                    <div className="text-sm font-bold text-white">Post Viral Generado</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Background Glow behind mockup */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
+                    </div>
                 </div>
+            </div>
 
-                <p className="text-center text-xs text-white/20 mt-8 font-medium">
-                    Al continuar aceptas nuestros términos y condiciones.
-                </p>
+            {/* Footer Logos / Social Proof */}
+            <div className="max-w-[1200px] mx-auto px-6 py-12 border-t border-white/5 mt-20">
+                <p className="text-center text-xs font-bold text-white/20 uppercase tracking-widest mb-8">Confían en nosotros</p>
+                <div className="flex flex-wrap justify-center gap-12 opacity-30 grayscale">
+                    {/* Placeholders for logos */}
+                    {['Google', 'Microsoft', 'Spotify', 'Stripe'].map(name => (
+                        <span key={name} className="text-xl font-black">{name}</span>
+                    ))}
+                </div>
             </div>
         </div>
     );
