@@ -19,11 +19,13 @@ export const Register: React.FC = () => {
         const emailParam = params.get('email');
         const nameParam = params.get('name') || params.get('full_name');
 
-        if (emailParam) {
+        // Stripe Payment Links don't replace email/name variables in redirect URL (privacy).
+        // If we receive the literal variable string (e.g. "{CHECKOUT_...}"), ignore it.
+        if (emailParam && !emailParam.includes('{')) {
             setEmail(emailParam.toLowerCase());
             setIsEmailLocked(true);
         }
-        if (nameParam) {
+        if (nameParam && !nameParam.includes('{')) {
             setFullName(nameParam);
         }
     }, [location]);
@@ -130,7 +132,7 @@ export const Register: React.FC = () => {
                 </div>
 
                 <p className="text-center mt-8 text-xs text-white/20 font-medium">
-                    © 2024 IngenIA Software
+                    © 2026 IngenIA Software
                 </p>
             </div>
         </div>

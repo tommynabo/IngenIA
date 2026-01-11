@@ -225,7 +225,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* Footer */}
             <div className="border-t border-white/5 bg-[#050508] py-8 mt-20">
                 <div className="max-w-[1200px] mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-xs text-white/20 font-medium">© 2024 IngenIA. Todos los derechos reservados.</p>
+                    <p className="text-xs text-white/20 font-medium">© 2026 IngenIA. Todos los derechos reservados.</p>
                     <div className="flex gap-6">
                         <button onClick={() => setShowPrivacy(true)} className="text-xs text-white/20 hover:text-white/40 transition-colors">Política de Privacidad</button>
                         <button onClick={() => setShowCookies(true)} className="text-xs text-white/20 hover:text-white/40 transition-colors">Política de Cookies</button>
