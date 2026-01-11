@@ -127,7 +127,9 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
 
       // AUTO-FIX: If prompt is the broken/truncated placeholder, replace it instantly.
       const currentPrompt = sData.persona_prompt || '';
-      if (currentPrompt.includes('RESTO DEL PROMPT ORIGINAL') || currentPrompt.length < 50) {
+      // Only reset if it matches the specific BROKEN snippet or is completely empty.
+      // We removed the length check to allow users to have short custom prompts if they want.
+      if (currentPrompt.includes('RESTO DEL PROMPT ORIGINAL') || currentPrompt.trim().length === 0) {
         setPersonality(FULL_PROMPT);
         // Silent DB Repair
         supabase.from('user_settings').update({ persona_prompt: FULL_PROMPT }).eq('user_id', userId).then(() => console.log('Fixed broken prompt'));
