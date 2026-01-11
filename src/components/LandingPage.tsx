@@ -8,6 +8,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'landing' | 'login'>('landing'); // 'landing' = Hero+Register, 'login' = Login Only
@@ -17,19 +18,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         setLoading(true);
 
         try {
-            // 1. Trigger Auth (Background)
-            const { error } = await supabase.auth.signInWithOtp({
+            // 1. Sign Up with Password
+            const { data, error } = await supabase.auth.signUp({
                 email,
+                password,
                 options: {
-                    data: { full_name: fullName }, // Save name in metadata
-                    emailRedirectTo: window.location.origin + '/panel',
+                    data: { full_name: fullName },
                 },
             });
 
             if (error) {
-                console.error("Auth error:", error);
-                // If error is strictly auth related, we might still want to let them pay? 
-                // But ideally we fix it. For now, log and proceed to Stripe as it's the priority.
+                console.error("Registration error:", error);
+                alert(error.message);
+                setLoading(false);
+                return;
             }
 
             // 2. Redirect to Stripe
@@ -47,12 +49,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithOtp({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email,
-                options: { emailRedirectTo: window.location.origin + '/panel' },
+                password,
             });
+
             if (error) throw error;
-            alert('¡Enlace de acceso enviado a tu correo!');
+            // Auth state change will be detected by App.tsx
         } catch (error: any) {
             alert(error.message);
         } finally {
@@ -72,7 +75,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     <button onClick={() => setView('landing')} className="absolute top-6 left-6 text-white/30 hover:text-white text-sm transition-colors">← Volver</button>
                     <div className="text-center mb-8 mt-4">
                         <h2 className="text-2xl font-bold mb-2">Acceder a tu Cuenta</h2>
-                        <p className="text-white/40 text-sm">Ingresa tu email para recibir el enlace de acceso.</p>
+                        <p className="text-white/40 text-sm">Introduce tus credenciales.</p>
                     </div>
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
@@ -85,12 +88,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                 className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                             />
                         </div>
+                        <div>
+                            <input
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Contraseña"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
                         <button
                             type="submit"
                             disabled={loading}
                             className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : "Enviar Enlace Mágico"}
+                            {loading ? <Loader2 className="animate-spin" /> : "Entrar al Panel"}
                         </button>
                     </form>
                 </div>
@@ -163,6 +176,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                             className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/30 uppercase ml-2">Contraseña</label>
+                                        <input
+                                            type="password"
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Crear contraseña"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                                        />
+                                    </div>
                                     <button
                                         type="submit"
                                         disabled={loading}
@@ -222,17 +246,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         {/* Background Glow behind mockup */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
                     </div>
-                </div>
-            </div>
-
-            {/* Footer Logos / Social Proof */}
-            <div className="max-w-[1200px] mx-auto px-6 py-12 border-t border-white/5 mt-20">
-                <p className="text-center text-xs font-bold text-white/20 uppercase tracking-widest mb-8">Confían en nosotros</p>
-                <div className="flex flex-wrap justify-center gap-12 opacity-30 grayscale">
-                    {/* Placeholders for logos */}
-                    {['Google', 'Microsoft', 'Spotify', 'Stripe'].map(name => (
-                        <span key={name} className="text-xl font-black">{name}</span>
-                    ))}
                 </div>
             </div>
         </div>
