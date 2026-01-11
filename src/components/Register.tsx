@@ -20,7 +20,7 @@ export const Register: React.FC = () => {
         const nameParam = params.get('name') || params.get('full_name');
 
         if (emailParam) {
-            setEmail(emailParam);
+            setEmail(emailParam.toLowerCase());
             setIsEmailLocked(true);
         }
         if (nameParam) {

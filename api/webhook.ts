@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
-        const customerEmail = session.customer_details?.email; // Or session.customer_email
+        const customerEmail = session.customer_details?.email?.toLowerCase(); // Ensure lowercase for consistent matching
 
         if (customerEmail) {
             // 1. Try to find existing user
