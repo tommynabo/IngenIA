@@ -22,34 +22,44 @@ export const Installation: React.FC = () => {
 
     const steps = [
         {
-            title: "1. Descarga el Archivo",
-            desc: "Obtén el paquete ZIP con la última versión de IngenIA.",
+            title: "1. Descarga y Descomprime",
+            desc: "Descarga el archivo y haz doble clic para descomprimirlo. ¡Importante! Necesitas la carpeta descomprimida.",
             action: (
                 <a href="/ingenia.zip" download className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-neon rounded-xl text-sm font-bold text-white hover:opacity-90 transition-opacity">
                     <Download size={16} /> Descargar ingenia.zip
                 </a>
             ),
-            img: "install_step1.png" // Placeholder or actual image path
+            img: "install_step1.png"
         },
         {
-            title: "2. Activa el Modo Desarrollador",
-            desc: "Ve a `chrome://extensions` y activa el interruptor en la esquina superior derecha.",
+            title: "2. Ve a Extensiones",
+            desc: "Escribe chrome://extensions en tu navegador o ve al menú > Extensiones > Gestionar extensiones.",
             action: (
                 <button onClick={() => window.open('chrome://extensions')} className="text-xs text-blue-400 underline decoration-blue-400/30 underline-offset-2">
-                    Abrir Extensiones
+                    Abrir chrome://extensions
                 </button>
             ),
             img: "install_step2.png"
         },
         {
-            title: "3. Carga la Extensión",
-            desc: "Haz clic en 'Cargar descomprimida' y selecciona la carpeta que acabas de descargar (¡descomprímela primero!).",
+            title: "3. Modo Desarrollador",
+            desc: "Activa el interruptor 'Modo de desarrollador' en la esquina superior derecha.",
             img: "install_step3.png"
         },
         {
-            title: "4. ¡Listo para Usar!",
-            desc: "Abre LinkedIn y verás el icono de IngenIA listo para ayudarte.",
+            title: "4. Cargar Descomprimida",
+            desc: "Haz clic en el botón 'Cargar descomprimida' que aparecerá arriba a la izquierda.",
             img: "install_step4.png"
+        },
+        {
+            title: "5. Selecciona la Carpeta",
+            desc: "Busca y selecciona la carpeta 'ingenia' que descomprimiste en el Paso 1.",
+            img: "install_step5.png"
+        },
+        {
+            title: "6. ¡Fíjala y Listo!",
+            desc: "Haz clic en el icono del puzzle 🧩, busca IngenIA y dale a la chincheta 📌 para tenerla siempre a mano.",
+            img: "install_step6.png"
         }
     ];
 
