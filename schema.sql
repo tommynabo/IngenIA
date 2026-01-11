@@ -247,9 +247,9 @@ La gente comenta para:
 
 **RECORDATORIO FINAL:** No olvides cerrar la frase mencionando al autor con @NOMBREDEPERFIL.'); 
   
-  -- Create default ACTIVE license (so they can use it immediately)
+  -- Create default license INACTIVE (Paywall)
   insert into public.licenses (user_id, status)
-  values (new.id, 'active');
+  values (new.id, 'inactive');
 
   return new;
 end;

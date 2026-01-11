@@ -41,6 +41,35 @@
     margin-right: 4px;
 }
 
+/* Mini/Icon-only button for replies */
+.ingenia-btn-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: transparent;
+    color: #666;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 4px;
+    padding: 0;
+}
+
+.ingenia-btn-mini:hover {
+    background-color: #f3f3f3;
+    color: #0a66c2;
+    border-color: #0a66c2;
+    transform: scale(1.1);
+}
+
+.ingenia-btn-mini .ingenia-icon {
+    margin: 0;
+    font-size: 14px;
+}
+
 /* Loading Spinner (White for filled btn) */
 .ingenia-spinner {
     width: 12px;

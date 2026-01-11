@@ -181,7 +181,7 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             disabled={loading}
             className="w-full py-4 bg-gradient-neon text-white rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : (isLogin ? "Iniciar Sesión" : "Registrarse")}
+            {loading ? <Loader2 className="animate-spin" size={20} /> : (isLogin ? "Iniciar Sesión" : "Empezar prueba gratis de 3 días")}
           </button>
 
           <div className="pt-4 text-center space-y-3">
@@ -367,12 +367,22 @@ La gente comenta para:
   const [totalUsage, setTotalUsage] = useState(0);
   const [memberSince, setMemberSince] = useState('Reciente');
   const [licenseKey, setLicenseKey] = useState<string>('');
+  const [licenseStatus, setLicenseStatus] = useState<'active' | 'inactive' | 'banned'>('inactive'); // Default inactive
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const currentLimit = RISK_LIMITS[riskLevel];
   const progressPercentage = Math.min((usedToday / currentLimit) * 100, 100);
 
   // Fetch session and profile on mount
   useEffect(() => {
+    // Check for payment success URL param
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      // Optimistic unlock could happen here, or let the fetchProfile handle it if webhook was fast enough.
+      // For better UX, we might show a Success Modal, but let's rely on data first.
+      // We can force a re-check or show a "Procesando activation..." message.
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoggedIn(!!session);
@@ -510,8 +520,22 @@ La gente comenta para:
 
       if (license) {
         setLicenseKey(license.key);
+        setLicenseStatus(license.status);
+
+        // PAYWALL LOGIC
+        // If query param ?payment=success exists, we might treat it as active optimistically
+        // OR we just rely on DB. 
+        // For smoother UX, if param is success but DB is still inactive (webhook lag), we could show a "Verifying..." spinner
+        // But for now, simple boolean logic.
+        const params = new URLSearchParams(window.location.search);
+        if (license.status === 'active' || params.get('payment') === 'success') {
+          setShowPaywall(false);
+        } else {
+          setShowPaywall(true);
+        }
       } else {
         setLicenseKey("No encontrada. Contacta soporte.");
+        setShowPaywall(true); // No license? Block.
       }
 
       // Fetch History
@@ -705,234 +729,262 @@ La gente comenta para:
               </div>
             </div>
 
-            {error && (
-              <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400">
-                <AlertCircle size={20} />
-                <p className="font-semibold">{error}</p>
+            {showPaywall ? (
+              <div className="flex flex-col items-center justify-center p-12 glass rounded-[3rem] border-blue-500/20 text-center space-y-8 animate-in zoom-in-95 duration-500">
+                <div className="p-6 bg-blue-500/10 rounded-full text-blue-400 mb-4 animate-pulse">
+                  <Lock size={64} />
+                </div>
+                <div className="space-y-4 max-w-lg">
+                  <h2 className="text-4xl font-black text-white tracking-tighter">¡Ya casi estás dentro!</h2>
+                  <p className="text-lg text-white/60 font-medium leading-relaxed">
+                    Para activar tu cuenta y comenzar tus <span className="text-blue-400 font-bold">3 días de prueba gratis</span>, necesitamos configurar tu suscripción.
+                  </p>
+                </div>
+
+                <a
+                  href={`https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(session?.user?.email || '')}`}
+                  className="group relative px-8 py-5 bg-gradient-neon rounded-2xl font-bold text-white shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all text-lg flex items-center gap-3 overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                  <Activity className="animate-bounce" size={24} />
+                  Activar Suscripción & Prueba Gratis
+                </a>
+
+                <p className="text-xs text-white/30 uppercase tracking-widest font-bold">
+                  Cancela cuando quieras • 0€ hoy
+                </p>
               </div>
-            )}
+            ) : (
+              <>
 
-            {lastGenerated && (
-              <div className="mb-8 p-6 glass border-green-500/20 rounded-[2rem] animate-in zoom-in-95 duration-300">
-                <div className="flex items-center gap-2 text-green-400 mb-2">
-                  <CheckCircle2 size={16} />
-                  <span className="text-xs font-bold uppercase tracking-widest">Generación Exitosa</span>
-                </div>
-                <p className="text-lg italic text-white/80 leading-relaxed font-medium">"{lastGenerated}"</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-              {/* Tarjeta 1: Control de Riesgo */}
-              <GlassCard title="Control de Riesgo" icon={Activity}>
-                <div className="space-y-8">
-                  <div className="grid grid-cols-3 gap-2">
-                    {[RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH].map(level => (
-                      <button
-                        key={level}
-                        onClick={() => setRiskLevel(level)}
-                        className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${riskLevel === level
-                          ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
-                          : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
-                          }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
+                {error && (
+                  <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400">
+                    <AlertCircle size={20} />
+                    <p className="font-semibold">{error}</p>
                   </div>
+                )}
 
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Uso Diario</span>
-                      <span className="text-3xl font-black text-white">{usedToday} <span className="text-white/20 text-sm">/ {currentLimit}</span></span>
+                {lastGenerated && (
+                  <div className="mb-8 p-6 glass border-green-500/20 rounded-[2rem] animate-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-2 text-green-400 mb-2">
+                      <CheckCircle2 size={16} />
+                      <span className="text-xs font-bold uppercase tracking-widest">Generación Exitosa</span>
                     </div>
-                    <div className="h-4 w-full bg-white/5 rounded-full p-1 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-neon rounded-full transition-all duration-1000 ease-out"
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
-                    </div>
-                    <button
-                      onClick={() => setUsedToday(0)}
-                      className="text-[10px] font-bold text-white/20 hover:text-white/50 transition-colors flex items-center gap-2 mx-auto"
-                    >
-                      <RotateCcw size={12} /> REINICIAR CONTADOR
-                    </button>
+                    <p className="text-lg italic text-white/80 leading-relaxed font-medium">"{lastGenerated}"</p>
                   </div>
-                </div>
-              </GlassCard>
+                )}
 
-              {/* Tarjeta 2: Personalidad */}
-              <GlassCard title="Personalidad IA" icon={UserCircle}>
-                <div className="flex flex-col h-full space-y-4">
-                  <p className="text-sm text-white/40 font-medium">Define cómo debe sonar tu voz digital.</p>
-                  <textarea
-                    value={personality}
-                    onChange={(e) => setPersonality(e.target.value)}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder:text-white/10"
-                    placeholder="Ej: Directivo senior, irónico pero constructivo..."
-                  />
-                  <button
-                    onClick={handleSaveSettings}
-                    className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    <Save size={16} /> Guardar Configuración
-                  </button>
-                </div>
-              </GlassCard>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
-              {/* Tarjeta 3: Seguridad Renovada */}
-              <GlassCard title="Conexión Extension" icon={ShieldCheck}>
-                <div className="space-y-6">
-                  <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">TU CLAVE DE LICENCIA</span>
-                      <div className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">
-                        PARA LA EXTENSIÓN
+                  {/* Tarjeta 1: Control de Riesgo */}
+                  <GlassCard title="Control de Riesgo" icon={Activity}>
+                    <div className="space-y-8">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH].map(level => (
+                          <button
+                            key={level}
+                            onClick={() => setRiskLevel(level)}
+                            className={`py-3 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all border ${riskLevel === level
+                              ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/20'
+                              : 'bg-white/5 text-white/30 border-white/5 hover:border-white/10'
+                              }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Uso Diario</span>
+                          <span className="text-3xl font-black text-white">{usedToday} <span className="text-white/20 text-sm">/ {currentLimit}</span></span>
+                        </div>
+                        <div className="h-4 w-full bg-white/5 rounded-full p-1 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-neon rounded-full transition-all duration-1000 ease-out"
+                            style={{ width: `${progressPercentage}%` }}
+                          ></div>
+                        </div>
+                        <button
+                          onClick={() => setUsedToday(0)}
+                          className="text-[10px] font-bold text-white/20 hover:text-white/50 transition-colors flex items-center gap-2 mx-auto"
+                        >
+                          <RotateCcw size={12} /> REINICIAR CONTADOR
+                        </button>
                       </div>
                     </div>
-                    {/* Display License Key */}
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 bg-black/20 p-2 rounded-lg text-xs font-mono text-white/80 break-all select-all">
-                        {licenseKey || "Cargando..."}
-                      </code>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(licenseKey)}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
-                        title="Copiar"
-                      >
-                        <Save size={14} />
-                      </button>
-                    </div>
-                  </div>
+                  </GlassCard>
 
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-[10px] text-white/30 uppercase tracking-widest">Estado</p>
-                      <div className="flex items-center gap-1.5 text-green-400 text-[10px] font-bold">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> ACTIVO
-                      </div>
-                    </div>
-                    <p className="text-xs text-white/60">IP Vinculada: <strong>{currentIp}</strong></p>
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-          </div>
-        ) : (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center gap-4 mb-8">
-              <button
-                onClick={() => setView('dashboard')}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-              >
-                <ChevronRight className="rotate-180" size={24} />
-              </button>
-              <h1 className="text-4xl font-extrabold tracking-tight">Tu Cuenta</h1>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-6">
-                <GlassCard title="Perfil" icon={UserCircle}>
-                  <div className="text-center space-y-4">
-                    <div className="relative w-24 h-24 mx-auto group cursor-pointer">
-                      <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <span className="text-xs font-bold text-white">CAMBIAR</span>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                  {/* Tarjeta 2: Personalidad */}
+                  <GlassCard title="Personalidad IA" icon={UserCircle}>
+                    <div className="flex flex-col h-full space-y-4">
+                      <p className="text-sm text-white/40 font-medium">Define cómo debe sonar tu voz digital.</p>
+                      <textarea
+                        value={personality}
+                        onChange={(e) => setPersonality(e.target.value)}
+                        className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder:text-white/10"
+                        placeholder="Ej: Directivo senior, irónico pero constructivo..."
                       />
-                      <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
-                        <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
-                          <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                      <button
+                        onClick={handleSaveSettings}
+                        className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      >
+                        <Save size={16} /> Guardar Configuración
+                      </button>
+                    </div>
+                  </GlassCard>
+
+                  {/* Tarjeta 3: Seguridad Renovada */}
+                  <GlassCard title="Conexión Extension" icon={ShieldCheck}>
+                    <div className="space-y-6">
+                      <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">TU CLAVE DE LICENCIA</span>
+                          <div className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">
+                            PARA LA EXTENSIÓN
+                          </div>
+                        </div>
+                        {/* Display License Key */}
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 bg-black/20 p-2 rounded-lg text-xs font-mono text-white/80 break-all select-all">
+                            {licenseKey || "Cargando..."}
+                          </code>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(licenseKey)}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
+                            title="Copiar"
+                          >
+                            <Save size={14} />
+                          </button>
                         </div>
                       </div>
+
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-[10px] text-white/30 uppercase tracking-widest">Estado</p>
+                          <div className="flex items-center gap-1.5 text-green-400 text-[10px] font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div> ACTIVO
+                          </div>
+                        </div>
+                        <p className="text-xs text-white/60">IP Vinculada: <strong>{currentIp}</strong></p>
+                      </div>
                     </div>
-
-                    <div>
-                      <h3 className="text-xl font-bold">{userName}</h3>
-                      <p className="text-sm text-white/40">{session?.user?.email}</p>
-                    </div>
-                    {/* Hiding Badges as requested */}
-                  </div>
-                </GlassCard>
-
-                <div className="glass rounded-[2rem] p-6 space-y-4">
-                  <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
-                  <div className="flex justify-between py-3 border-b border-white/5">
-                    <span className="text-sm text-white/60 font-medium">Total Generado</span>
-                    <span className="text-sm font-bold">{totalUsage}</span>
-                  </div>
-
-                  <div className="flex justify-between py-3">
-                    <span className="text-sm text-white/60 font-medium">Miembro desde</span>
-                    <span className="text-sm font-bold capitalize">{memberSince}</span>
-                  </div>
+                  </GlassCard>
                 </div>
               </div>
+            ) : (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="flex items-center gap-4 mb-8">
+                <button
+                  onClick={() => setView('dashboard')}
+                  className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+                >
+                  <ChevronRight className="rotate-180" size={24} />
+                </button>
+                <h1 className="text-4xl font-extrabold tracking-tight">Tu Cuenta</h1>
+              </div>
 
-              <div className="lg:col-span-2">
-                <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
-                  <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                        <History size={20} />
-                      </div>
-                      <h3 className="text-xl font-bold">Historial de Generaciones</h3>
-                    </div>
-                    <button
-                      onClick={() => setHistory([])}
-                      className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
-                    >
-                      LIMPIAR TODO
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {history.length === 0 ? (
-                      <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
-                        <Activity size={48} />
-                        <p className="font-bold uppercase tracking-widest text-sm">Sin actividad reciente</p>
-                      </div>
-                    ) : (
-                      history.map((item) => (
-                        <div key={item.id} className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all group">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
-                              <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
-                            </div>
-                            <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                          <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
-                            "{item.comment}"
-                            <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                              <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors">
-                                <ExternalLink size={14} />
-                              </button>
-                            </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 space-y-6">
+                  <GlassCard title="Perfil" icon={UserCircle}>
+                    <div className="text-center space-y-4">
+                      <div className="relative w-24 h-24 mx-auto group cursor-pointer">
+                        <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <span className="text-xs font-bold text-white">CAMBIAR</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                        />
+                        <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
+                          <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
+                            <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
                           </div>
                         </div>
-                      ))
-                    )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-xl font-bold">{userName}</h3>
+                        <p className="text-sm text-white/40">{session?.user?.email}</p>
+                      </div>
+                      {/* Hiding Badges as requested */}
+                    </div>
+                  </GlassCard>
+
+                  <div className="glass rounded-[2rem] p-6 space-y-4">
+                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Estadísticas Generales</h4>
+                    <div className="flex justify-between py-3 border-b border-white/5">
+                      <span className="text-sm text-white/60 font-medium">Total Generado</span>
+                      <span className="text-sm font-bold">{totalUsage}</span>
+                    </div>
+
+                    <div className="flex justify-between py-3">
+                      <span className="text-sm text-white/60 font-medium">Miembro desde</span>
+                      <span className="text-sm font-bold capitalize">{memberSince}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
+                    <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+                          <History size={20} />
+                        </div>
+                        <h3 className="text-xl font-bold">Historial de Generaciones</h3>
+                      </div>
+                      <button
+                        onClick={() => setHistory([])}
+                        className="text-xs font-bold text-white/20 hover:text-red-400 transition-colors"
+                      >
+                        LIMPIAR TODO
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {history.length === 0 ? (
+                        <div className="h-64 flex flex-col items-center justify-center text-white/20 gap-4">
+                          <Activity size={48} />
+                          <p className="font-bold uppercase tracking-widest text-sm">Sin actividad reciente</p>
+                        </div>
+                      ) : (
+                        history.map((item) => (
+                          <div key={item.id} className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all group">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">Post de referencia</span>
+                                <p className="text-sm font-bold text-white/60 truncate max-w-md">{item.postSnippet}</p>
+                              </div>
+                              <span className="text-[10px] text-white/20 font-medium">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
+                              "{item.comment}"
+                              <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors">
+                                  <ExternalLink size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
         )}
-      </main>
+          </main>
 
       {/* Background Decor */}
-      <div className="fixed bottom-0 right-0 p-10 pointer-events-none opacity-20">
-        <div className="text-8xl font-black tracking-tighter text-white/5 select-none">
-          INGENIA
+        <div className="fixed bottom-0 right-0 p-10 pointer-events-none opacity-20">
+          <div className="text-8xl font-black tracking-tighter text-white/5 select-none">
+            INGENIA
+          </div>
         </div>
-      </div>
     </div>
   );
 };
