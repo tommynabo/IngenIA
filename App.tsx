@@ -105,15 +105,15 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
+      if (session) await fetchProfile(session.user.id);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
+      if (session) await fetchProfile(session.user.id);
       else setLoading(false);
     });
 
