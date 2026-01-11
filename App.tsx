@@ -121,14 +121,9 @@ const AppContent: React.FC = () => {
     // We can keep the global check here if it affects routing, but usually it updates DB.
     // The previous implementation had it in App.tsx useEffect.
     // I will add it here to ensure it runs on any protected route.
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success' && session) {
-      supabase.from('licenses').update({ status: 'active' }).eq('user_id', session.user.id)
-        .then(() => {
-          fetchProfile(session.user.id);
-          window.history.replaceState({}, '', window.location.pathname);
-        });
-    }
+    // Insecure payment check removed. License activation must be handled by server-side webhook.
+    // const params = new URLSearchParams(window.location.search);
+    // if (params.get('payment') === 'success' && session) { ... }
 
     return () => subscription.unsubscribe();
   }, [session?.user?.id]); // Re-run if user changes

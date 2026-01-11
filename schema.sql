@@ -35,7 +35,7 @@ create type license_status as enum ('active', 'inactive', 'banned');
 create table public.licenses (
   key uuid primary key default uuid_generate_v4(),
   user_id uuid references public.user_profiles(id) on delete cascade, -- Added cascade deletion
-  status license_status not null default 'active',
+  status license_status not null default 'inactive',
   bound_ip text,
   expires_at timestamp with time zone
 );
