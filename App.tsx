@@ -50,7 +50,59 @@ const AppContent: React.FC = () => {
   const [userAvatar, setUserAvatar] = useState('https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
   // --- Fetch Logic ---
-  // ... (fetchHistory, checkDailyReset, fetchProfile kept as is)
+  const fetchHistory = async (userId: string) => {
+    const { data } = await supabase.from('generation_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
+    if (data) {
+      setHistory(data.map(item => ({
+        id: item.id,
+        timestamp: item.created_at,
+        postSnippet: item.post_snippet,
+        comment: item.comment
+      })));
+      if (data.length > 0) setTotalUsage(prev => (prev === 0 ? Math.max(prev, data.length) : prev));
+    }
+  };
+
+  const checkDailyReset = async (userId: string, currentSettings: any) => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    let cycleDate = new Date(now);
+    if (currentHour < 8) cycleDate.setDate(cycleDate.getDate() - 1);
+    const dateString = cycleDate.toISOString().split('T')[0];
+
+    if (!currentSettings.last_reset_date || currentSettings.last_reset_date !== dateString) {
+      const { error } = await supabase.from('user_settings').update({ daily_usage: 0, last_reset_date: dateString }).eq('user_id', userId);
+      if (!error) setUsedToday(0);
+    }
+  };
+
+  const fetchProfile = async (userId: string) => {
+    // Profile
+    const { data: pData } = await supabase.from('user_profiles').select('*').eq('id', userId).single();
+    if (pData) {
+      setProfile(pData);
+      if (pData.avatar_url) setUserAvatar(pData.avatar_url);
+    }
+
+    // Settings
+    const { data: sData } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+    if (sData) {
+      setUsedToday(sData.daily_usage || 0);
+      setTotalUsage(sData.total_usage || 0);
+      setPersonality(sData.persona_prompt || '');
+      checkDailyReset(userId, sData);
+    }
+
+    // License
+    const { data: lData } = await supabase.from('licenses').select('*').eq('user_id', userId).single();
+    if (lData) {
+      setLicenseKey(lData.key);
+      setLicenseStatus(lData.status);
+    }
+
+    // History
+    fetchHistory(userId);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
