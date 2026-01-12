@@ -313,7 +313,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                     </div>
                                     <div>
                                         <div className="text-sm font-bold text-purple-400 mb-1">ANUAL</div>
-                                        <div className="text-2xl font-bold">120€ <span className="text-sm text-white/40 font-normal">/ año</span></div>
+                                        <div className="text-2xl font-bold">100€ <span className="text-sm text-white/40 font-normal">/ año</span></div>
                                     </div>
                                     {loading ? <Loader2 className="animate-spin text-white/20" /> : <ArrowRight className="text-white/20 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />}
                                 </button>
