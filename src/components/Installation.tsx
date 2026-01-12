@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2, Copy } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 export const Installation: React.FC = () => {
