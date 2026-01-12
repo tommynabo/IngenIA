@@ -237,14 +237,23 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
 
                     const { error: uploadError } = await supabase.storage
                       .from('avatars')
-                      .upload(filePath, file, {
-                        cacheControl: '3600',
-                        upsert: true
-                      });
+                      .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
                     if (uploadError) {
-                      console.error('Supabase upload error:', uploadError);
-                      throw uploadError;
+                      // Auto-create bucket if missing
+                      if (uploadError.message.includes('Bucket not found') || (uploadError as any).statusCode === '404') {
+                        console.log('Bucket "avatars" not found. Attempting to create...');
+                        const { error: createBucketError } = await supabase.storage.createBucket('avatars', { public: true });
+                        if (createBucketError) throw createBucketError;
+
+                        // Retry upload
+                        const { error: retryError } = await supabase.storage
+                          .from('avatars')
+                          .upload(filePath, file, { cacheControl: '3600', upsert: true });
+                        if (retryError) throw retryError;
+                      } else {
+                        throw uploadError;
+                      }
                     }
 
                     // 2. Get Public URL
