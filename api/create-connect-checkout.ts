@@ -23,23 +23,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
 
         // --- SECURITY: IP BLOCKING ---
-        const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+        try {
+            const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
-        // 1. Check IP/Email Blacklist
-        // We check if either the EMAIL or the IP is in our blocklists
-        const { data: blockedEmail } = await supabase.from('blocked_users').select('email').eq('email', email).single();
-        const { data: blockedIpEntry } = await supabase.from('blocked_ips').select('ip_address').eq('ip_address', clientIp).single();
-        // Also check if this IP is associated with any blocked user in blocked_users table
-        const { data: blockedUserByIp } = await supabase.from('blocked_users').select('email').eq('ip_address', clientIp).single();
+            // 1. Check IP/Email Blacklist
+            // We check if either the EMAIL or the IP is in our blocklists
+            const { data: blockedEmail } = await supabase.from('blocked_users').select('email').eq('email', email).single();
+            const { data: blockedIpEntry } = await supabase.from('blocked_ips').select('ip_address').eq('ip_address', clientIp).single();
+            // Also check if this IP is associated with any blocked user in blocked_users table
+            const { data: blockedUserByIp } = await supabase.from('blocked_users').select('email').eq('ip_address', clientIp).single();
 
-        if (blockedEmail || blockedIpEntry || blockedUserByIp) {
-            console.log(`BLOCKED ATTEMPT: Email ${email} or IP ${clientIp} is blacklisted.`);
-            return res.status(403).json({ error: 'Access Denied. Your account or device has been flagged.' });
-        }
+            if (blockedEmail || blockedIpEntry || blockedUserByIp) {
+                console.log(`BLOCKED ATTEMPT: Email ${email} or IP ${clientIp} is blacklisted.`);
+                return res.status(403).json({ error: 'Access Denied. Your account or device has been flagged.' });
+            }
 
-        // 2. Log Access (Update User IP)
-        if (userId) {
-            await supabase.from('user_profiles').update({ last_ip: clientIp }).eq('id', userId);
+            // 2. Log Access (Update User IP)
+            if (userId) {
+                await supabase.from('user_profiles').update({ last_ip: clientIp }).eq('id', userId);
+            }
+        } catch (securityError) {
+            // Fail Open: If security check fails (e.g. DB error, missing column), ALLOW payment to proceed
+            // This prevents blocking legitimate payments if the blacklist system has a glitch
+            console.error('Security/IP Check skipped due to error:', securityError);
         }
         // -----------------------------
 
