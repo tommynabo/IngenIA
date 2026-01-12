@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2, Copy } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
+import { VSLVideo } from './VSLVideo';
 
 export const Installation: React.FC = () => {
     const [userAvatar, setUserAvatar] = useState('https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
@@ -85,6 +86,11 @@ export const Installation: React.FC = () => {
             <div className="text-center mb-16 space-y-4">
                 <h1 className="text-5xl font-extrabold tracking-tight">Instalación Rápida</h1>
                 <p className="text-white/40 text-lg">Configura tu motor de ingenio en menos de 2 minutos.</p>
+            </div>
+
+            {/* Video Section */}
+            <div className="max-w-3xl mx-auto mb-20">
+                <VSLVideo className="w-full" />
             </div>
 
             <div className="space-y-16 relative">
