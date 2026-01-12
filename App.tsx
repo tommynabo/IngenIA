@@ -223,24 +223,36 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
 
                   try {
                     // 1. Upload to Supabase Storage
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
-                    const filePath = `${fileName}`;
+                    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+                    // Sanitize filename: valid chars only
+                    const timestamp = Date.now();
+                    const fileName = `${session.user.id}-${timestamp}.${fileExt}`;
+                    const filePath = fileName; // No nested folders to avoid issues
 
                     // Optimistic update
                     const objectUrl = URL.createObjectURL(file);
                     setUserAvatar(objectUrl);
 
+                    console.log('Uploading avatar:', filePath);
+
                     const { error: uploadError } = await supabase.storage
                       .from('avatars')
-                      .upload(filePath, file);
+                      .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                      });
 
-                    if (uploadError) throw uploadError;
+                    if (uploadError) {
+                      console.error('Supabase upload error:', uploadError);
+                      throw uploadError;
+                    }
 
                     // 2. Get Public URL
                     const { data: { publicUrl } } = supabase.storage
                       .from('avatars')
                       .getPublicUrl(filePath);
+
+                    console.log('Avatar uploaded, public URL:', publicUrl);
 
                     // 3. Update Profile
                     const { error: updateError } = await supabase
@@ -248,14 +260,17 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
                       .update({ avatar_url: publicUrl })
                       .eq('id', session.user.id);
 
-                    if (updateError) throw updateError;
+                    if (updateError) {
+                      console.error('Profile update error:', updateError);
+                      throw updateError;
+                    }
 
                     // Final state update (confirm)
                     setUserAvatar(publicUrl);
 
-                  } catch (error) {
+                  } catch (error: any) {
                     console.error('Error uploading avatar:', error);
-                    alert('Error al actualizar la imagen de perfil');
+                    alert(`Error al actualizar la imagen: ${error.message || 'Inténtalo de nuevo'}`);
                     // Revert on error (could fetch profile again)
                     fetchProfile(session.user.id);
                   }
