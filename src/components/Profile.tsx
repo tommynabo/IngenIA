@@ -33,10 +33,6 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                         </div>
                         <div className="text-center space-y-4">
                             <div className="relative w-24 h-24 mx-auto group cursor-pointer">
-                                <div className="absolute inset-0 bg-black/50 rounded-[2.5rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                    <span className="text-xs font-bold text-white">CAMBIAR</span>
-                                </div>
-                                <input type="file" accept="image/*" onChange={onAvatarChange} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
                                 <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
                                     <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
                                         <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />

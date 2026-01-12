@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2, Copy } from 'lucide-react';
+import { LayoutDashboard, UserCircle, Download, LogOut, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 export const Installation: React.FC = () => {
@@ -52,7 +52,7 @@ export const Installation: React.FC = () => {
                         className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white"
                         title="Copiar URL"
                     >
-                        {copied ? <CheckCircle2 size={18} className="text-green-400" /> : <Copy size={18} />}
+                        {copied ? <CheckCircle2 size={18} className="text-green-400" /> : <Download size={18} className="rotate-0" />}
                     </button>
                 </div>
             ),

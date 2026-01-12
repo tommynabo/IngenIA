@@ -217,73 +217,7 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
                 memberSince={profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Reciente'}
                 history={history}
                 onClearHistory={() => setHistory([])}
-                onAvatarChange={async (e: any) => {
-                  const file = e.target.files[0];
-                  if (!file) return;
-
-                  try {
-                    // 1. Upload to Supabase Storage
-                    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
-                    // Sanitize filename: valid chars only
-                    const timestamp = Date.now();
-                    const fileName = `${session.user.id}-${timestamp}.${fileExt}`;
-                    const filePath = fileName; // No nested folders to avoid issues
-
-                    // Optimistic update
-                    const objectUrl = URL.createObjectURL(file);
-                    setUserAvatar(objectUrl);
-
-                    console.log('Uploading avatar:', filePath);
-
-                    const { error: uploadError } = await supabase.storage
-                      .from('avatars')
-                      .upload(filePath, file, { cacheControl: '3600', upsert: true });
-
-                    if (uploadError) {
-                      // Auto-create bucket if missing
-                      if (uploadError.message.includes('Bucket not found') || (uploadError as any).statusCode === '404') {
-                        console.log('Bucket "avatars" not found. Attempting to create...');
-                        const { error: createBucketError } = await supabase.storage.createBucket('avatars', { public: true });
-                        if (createBucketError) throw createBucketError;
-
-                        // Retry upload
-                        const { error: retryError } = await supabase.storage
-                          .from('avatars')
-                          .upload(filePath, file, { cacheControl: '3600', upsert: true });
-                        if (retryError) throw retryError;
-                      } else {
-                        throw uploadError;
-                      }
-                    }
-
-                    // 2. Get Public URL
-                    const { data: { publicUrl } } = supabase.storage
-                      .from('avatars')
-                      .getPublicUrl(filePath);
-
-                    console.log('Avatar uploaded, public URL:', publicUrl);
-
-                    // 3. Update Profile
-                    const { error: updateError } = await supabase
-                      .from('user_profiles')
-                      .update({ avatar_url: publicUrl })
-                      .eq('id', session.user.id);
-
-                    if (updateError) {
-                      console.error('Profile update error:', updateError);
-                      throw updateError;
-                    }
-
-                    // Final state update (confirm)
-                    setUserAvatar(publicUrl);
-
-                  } catch (error: any) {
-                    console.error('Error uploading avatar:', error);
-                    alert(`Error al actualizar la imagen: ${error.message || 'Inténtalo de nuevo'}`);
-                    // Revert on error (could fetch profile again)
-                    fetchProfile(session.user.id);
-                  }
-                }}
+                onAvatarChange={() => { }}
               />
             } />
             <Route path="instalacion" element={<Installation />} />
