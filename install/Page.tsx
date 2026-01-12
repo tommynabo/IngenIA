@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Download, ShieldCheck, FileInput, Key, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { VSLVideo } from '../src/components/VSLVideo';
 
 const GlassCard: React.FC<{
     children: React.ReactNode;
@@ -90,6 +91,11 @@ const InstallPage: React.FC = () => {
                         Sigue estos sencillos pasos para activar tu superpoder en LinkedIn.
                         <br className="hidden md:block" /> Instalación manual en 2 minutos (Requiere descomprimir).
                     </p>
+                </div>
+
+                {/* VSL Video Section */}
+                <div className="max-w-3xl mx-auto mb-20 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                    <VSLVideo className="w-full" />
                 </div>
 
                 {/* Download Section */}

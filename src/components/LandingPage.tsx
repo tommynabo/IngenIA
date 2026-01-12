@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { Loader2, ArrowRight, CheckCircle2, Star, X, FileText } from 'lucide-react';
+import { VSLVideo } from './VSLVideo';
 
 interface LandingPageProps {
     onLoginSuccess: (session: any) => void;
@@ -217,47 +218,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                         </div>
                     </div>
 
-                    {/* Visual / Mockup */}
+                    {/* VSL Video */}
                     <div className="relative hidden lg:block perspective-1000">
-                        {/* ... (Keep existing Mockup code) ... */}
                         <div className="relative z-10 transform rotate-y-[-10deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
-                            <div className="glass rounded-3xl p-6 border border-white/10 shadow-2xl bg-[#050508]/50 backdrop-blur-xl">
-                                {/* Fake UI Mockup */}
-                                <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
-                                    <div className="flex gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-red-500/20"></div>
-                                        <div className="w-3 h-3 rounded-full bg-yellow-500/20"></div>
-                                        <div className="w-3 h-3 rounded-full bg-green-500/20"></div>
-                                    </div>
-                                    <div className="h-2 w-20 bg-white/10 rounded-full"></div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="flex gap-4">
-                                        <div className="w-1/3 space-y-3">
-                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse"></div>
-                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse delay-75"></div>
-                                            <div className="h-24 bg-white/5 rounded-2xl animate-pulse delay-150"></div>
-                                        </div>
-                                        <div className="w-2/3 bg-white/5 rounded-2xl h-80 p-4 border border-white/5 relative overflow-hidden group">
-                                            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#050508] to-transparent z-10"></div>
-                                            <div className="space-y-3 opacity-50">
-                                                <div className="h-4 w-3/4 bg-white/10 rounded"></div>
-                                                <div className="h-4 w-1/2 bg-white/10 rounded"></div>
-                                                <div className="h-4 w-full bg-white/10 rounded"></div>
-                                                <div className="h-4 w-5/6 bg-white/10 rounded"></div>
-                                            </div>
-                                            {/* Floating Element */}
-                                            <div className="absolute bottom-8 right-8 left-8 bg-[#0a0a0f] p-4 rounded-xl border border-white/10 shadow-xl z-20 flex items-center gap-3 transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                                                <div className="p-2 bg-green-500/20 text-green-400 rounded-lg"><CheckCircle2 size={16} /></div>
-                                                <div>
-                                                    <div className="text-xs text-white/40 font-bold uppercase">Estado</div>
-                                                    <div className="text-sm font-bold text-white">Post Viral Generado</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <VSLVideo className="w-full shadow-2xl" />
                         </div>
                         {/* Background Glow behind mockup */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
