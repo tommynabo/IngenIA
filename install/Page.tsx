@@ -82,6 +82,15 @@ const InstallPage: React.FC = () => {
             </nav>
 
             <main className="max-w-4xl mx-auto px-6 pb-32">
+                {/* VSL Video Section - Top & 3D Style */}
+                <div className="relative perspective-1000 mb-16 max-w-3xl mx-auto animate-in slide-in-from-top-8 fade-in duration-1000">
+                    <div className="relative z-10 transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
+                        <VSLVideo className="w-full shadow-2xl" />
+                    </div>
+                    {/* Background Glow */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
+                </div>
+
                 <div className="text-center space-y-6 mb-16 animate-in slide-in-from-bottom-8 fade-in duration-700">
                     <h1 className="text-5xl md:text-7xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 pb-2">
                         Comienza a usar <br />
@@ -94,9 +103,7 @@ const InstallPage: React.FC = () => {
                 </div>
 
                 {/* VSL Video Section */}
-                <div className="max-w-3xl mx-auto mb-20 animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                    <VSLVideo className="w-full" />
-                </div>
+
 
                 {/* Download Section */}
                 <div className="flex justify-center mb-24 animate-in zoom-in-50 duration-700 delay-200">
