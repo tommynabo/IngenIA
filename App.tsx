@@ -254,6 +254,7 @@ const Paywall: React.FC<{ session: any }> = ({ session }) => {
         },
         body: JSON.stringify({
           email: session?.user?.email,
+          userId: session?.user?.id, // Pass User ID for Webhook linking
           billingInterval,
         }),
       });
