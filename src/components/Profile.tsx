@@ -29,16 +29,6 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                     <div className="glass p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-between group hover:bg-white/[0.02] transition-colors relative overflow-hidden">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400"><UserCircle size={20} /></div>
-                            <h3 className="text-lg font-bold">Perfil</h3>
-                        </div>
-                        <div className="text-center space-y-4">
-                            <div className="relative w-24 h-24 mx-auto group cursor-pointer">
-                                <div className="w-full h-full rounded-[2.5rem] bg-gradient-neon p-1">
-                                    <div className="w-full h-full rounded-[2.2rem] overflow-hidden border-4 border-[#020205]">
-                                        <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
-                                    </div>
-                                </div>
-                            </div>
                             <div>
                                 <h3 className="text-xl font-bold">{userName}</h3>
                                 <p className="text-sm text-white/40">{session?.user?.email}</p>
