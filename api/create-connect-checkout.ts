@@ -69,17 +69,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             customer_email: email,
             subscription_data: {
                 trial_period_days: 3,
-                application_fee_percent: 50, // 50% Platform Fee
             },
             allow_promotion_codes: true, // Allow user to enter coupons in Stripe
             success_url: `${origin}/registro?payment=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/?payment=cancelled`,
         };
-        // Only add transfer_data if we have a Connected Account ID
+        // Only add transfer_data and application_fee_percent if we have a Connected Account ID
         if (connectAccountId) {
             sessionParams.subscription_data!.transfer_data = {
                 destination: connectAccountId,
             };
+            sessionParams.subscription_data!.application_fee_percent = 50; // 50% Platform Fee
         }
 
         const session = await stripe.checkout.sessions.create(sessionParams);

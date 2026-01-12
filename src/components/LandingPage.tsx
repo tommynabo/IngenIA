@@ -14,6 +14,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     const [view, setView] = useState<'landing' | 'login'>('landing'); // 'landing' = Hero+Register, 'login' = Login Only
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showCookies, setShowCookies] = useState(false);
+    const [showPlanModal, setShowPlanModal] = useState(false);
+    const [showCouponInput, setShowCouponInput] = useState(false);
 
     const handleRegisterAndRedirect = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,8 +119,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
 
     // ... (keep Login view)
 
-    const [showPlanModal, setShowPlanModal] = useState(false);
-    const [showCouponInput, setShowCouponInput] = useState(false);
+    // ... (keep Login view)
 
     // ... (keep existing login logic)
 
@@ -307,9 +308,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                     disabled={loading}
                                     className="group relative p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50 transition-all text-left flex items-center justify-between"
                                 >
-                                    <div className="absolute -top-3 -right-3 bg-gradient-neon px-3 py-1 rounded-full text-[10px] font-bold shadow-lg rotate-3">
+                                    {/* <div className="absolute -top-3 -right-3 bg-gradient-neon px-3 py-1 rounded-full text-[10px] font-bold shadow-lg rotate-3">
                                         AHORRA 2 MESES
-                                    </div>
+                                    </div> */}
                                     <div>
                                         <div className="text-sm font-bold text-purple-400 mb-1">ANUAL</div>
                                         <div className="text-2xl font-bold">120€ <span className="text-sm text-white/40 font-normal">/ año</span></div>
