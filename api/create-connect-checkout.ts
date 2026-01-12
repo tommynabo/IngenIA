@@ -58,10 +58,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ? process.env.STRIPE_PRICE_ID_YEARLY
             : process.env.STRIPE_PRICE_ID_MONTHLY;
 
-        // 2. If no explicit Price ID, fetch dynamically from Product ID (User provided: prod_TltwReePAZSG7t)
+        // 2. If no explicit Price ID, fetch dynamically from Product ID (User provided: prod_TmIH4MYDSrsguQ)
         if (!selectedPriceId) {
             // ... (keep existing dynamic fetch logic)
-            const productId = process.env.STRIPE_PRODUCT_ID || 'prod_TltwReePAZSG7t';
+            const productId = process.env.STRIPE_PRODUCT_ID || 'prod_TmIH4MYDSrsguQ';
             if (productId) {
                 const prices = await stripe.prices.list({
                     product: productId,
@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!selectedPriceId) {
-            throw new Error(`No price found for interval '${billingInterval}' (Product: prod_TltwReePAZSG7t). Check your Stripe Dashboard or .env variables.`);
+            throw new Error(`No price found for interval '${billingInterval}' (Product: prod_TmIH4MYDSrsguQ). Check your Stripe Dashboard or .env variables.`);
         }
 
         const connectAccountId = process.env.STRIPE_CONNECT_ACCOUNT_ID;
