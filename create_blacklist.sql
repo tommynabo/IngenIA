@@ -1,6 +1,8 @@
 -- Tabla de Usuarios Bloqueados (Lista Negra)
 create table if not exists public.blocked_users (
     email text primary key,
+    ip_address text, -- IP Address associated with the user
+    user_id uuid, -- Optional reference to Supabase User ID
     reason text default 'subscription_cancelled',
     blocked_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

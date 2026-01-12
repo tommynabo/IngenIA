@@ -105,17 +105,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     console.log(`Processing cancellation for: ${customerEmail}`);
 
                     // 1. Mark License as Cancelled/Banned
-                    // Find user by email
-                    const { data: profile } = await supabase.from('user_profiles').select('id').eq('email', customerEmail).single();
+                    // 1. Mark License as Cancelled/Banned
+                    const { data: profile } = await supabase.from('user_profiles').select('id, last_ip').eq('email', customerEmail).single();
+
                     if (profile) {
                         await supabase.from('licenses').update({ status: 'banned' }).eq('user_id', profile.id);
+
+                        // 2. Add to Blacklist (Email AND IP)
+                        // Block User Entry
+                        await supabase.from('blocked_users').upsert({
+                            email: customerEmail,
+                            ip_address: profile.last_ip,
+                            user_id: profile.id,
+                            reason: 'subscription_cancelled'
+                        });
+
+                        // Block IP Explicitly if known
+                        if (profile.last_ip) {
+                            await supabase.from('blocked_ips').upsert({
+                                ip_address: profile.last_ip,
+                                reason: `Associated with banned user ${customerEmail}`
+                            });
+                        }
+                    } else {
+                        // Fallback just email block if no profile found
+                        await supabase.from('blocked_users').upsert({
+                            email: customerEmail,
+                            reason: 'subscription_cancelled'
+                        });
                     }
-
-                    // 2. Add to Blacklist
-                    await supabase.from('blocked_users').upsert({ email: customerEmail, reason: 'subscription_cancelled' });
-
-                    // 3. Remove from Waiting Room (if they never registered)
-                    await supabase.from('pre_paid_licenses').delete().eq('email', customerEmail);
                 }
             }
         }

@@ -62,6 +62,29 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                             <span className="text-sm font-bold capitalize">{memberSince}</span>
                         </div>
                     </div>
+
+                    {/* Subscription Management (Hidden/Subtle) */}
+                    <div className="flex justify-center pt-2">
+                        <button
+                            onClick={async () => {
+                                // Simple confirmation
+                                if (!confirm('¿Quieres gestionar tu suscripción (cancelar/facturas) en Stripe?')) return;
+                                try {
+                                    const res = await fetch('/api/create-portal-session', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ email: session.user.email })
+                                    });
+                                    const data = await res.json();
+                                    if (data.url) window.location.href = data.url;
+                                    else alert('No se pudo acceder al portal. Verifica que tengas una suscripción activa.');
+                                } catch (e) { alert('Error de conexión'); }
+                            }}
+                            className="text-[10px] font-bold text-white/10 hover:text-red-500/50 transition-colors uppercase tracking-widest"
+                        >
+                            Cancelar Suscripción
+                        </button>
+                    </div>
                 </div>
 
                 <div className="lg:col-span-2">

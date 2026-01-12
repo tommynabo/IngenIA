@@ -1,10 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 // Fix: Use the API version expected by the installed Stripe library types
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-12-15.clover' as any, // Explicit cast to avoid type conflicts if definitions vary
 });
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -15,6 +21,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { email, billingInterval, userId } = req.body; // 'month' or 'year'
 
         if (!process.env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY');
+
+        // --- SECURITY: IP BLOCKING ---
+        const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+
+        // 1. Check IP/Email Blacklist
+        // We check if either the EMAIL or the IP is in our blocklists
+        const { data: blockedEmail } = await supabase.from('blocked_users').select('email').eq('email', email).single();
+        const { data: blockedIpEntry } = await supabase.from('blocked_ips').select('ip_address').eq('ip_address', clientIp).single();
+        // Also check if this IP is associated with any blocked user in blocked_users table
+        const { data: blockedUserByIp } = await supabase.from('blocked_users').select('email').eq('ip_address', clientIp).single();
+
+        if (blockedEmail || blockedIpEntry || blockedUserByIp) {
+            console.log(`BLOCKED ATTEMPT: Email ${email} or IP ${clientIp} is blacklisted.`);
+            return res.status(403).json({ error: 'Access Denied. Your account or device has been flagged.' });
+        }
+
+        // 2. Log Access (Update User IP)
+        if (userId) {
+            await supabase.from('user_profiles').update({ last_ip: clientIp }).eq('id', userId);
+        }
+        // -----------------------------
 
         // ... (Price resolution logic remains the same)
         // 1. Try to get explicit Price IDs from Environment (Best Performance)
