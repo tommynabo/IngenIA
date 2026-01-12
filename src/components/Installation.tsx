@@ -29,7 +29,7 @@ export const Installation: React.FC = () => {
                     <Download size={16} /> Descargar ingenia.zip
                 </a>
             ),
-            img: "install_step1.png"
+            img: "step-license-dashboard.png"
         },
         {
             title: "2. Ve a Extensiones",
@@ -39,27 +39,27 @@ export const Installation: React.FC = () => {
                     Abrir chrome://extensions
                 </button>
             ),
-            img: "install_step2.png"
+            img: "step-1-extensions.png"
         },
         {
             title: "3. Modo Desarrollador",
             desc: "Activa el interruptor 'Modo de desarrollador' en la esquina superior derecha.",
-            img: "install_step3.png"
+            img: "step-2-dev-mode.png"
         },
         {
             title: "4. Cargar Descomprimida",
             desc: "Haz clic en el botón 'Cargar descomprimida' que aparecerá arriba a la izquierda.",
-            img: "install_step4.png"
+            img: "step-2-dev-mode.png"
         },
         {
             title: "5. Selecciona la Carpeta",
             desc: "Busca y selecciona la carpeta 'ingenia' que descomprimiste en el Paso 1.",
-            img: "install_step5.png"
+            img: "step-4-folder.png"
         },
         {
             title: "6. ¡Fíjala y Listo!",
             desc: "Haz clic en el icono del puzzle 🧩, busca IngenIA y dale a la chincheta 📌 para tenerla siempre a mano.",
-            img: "install_step6.png"
+            img: "step-5-verify.png"
         }
     ];
 

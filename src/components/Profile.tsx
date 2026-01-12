@@ -115,9 +115,7 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
                                             "{item.comment}"
-                                            <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                                <button className="p-2 rounded-lg bg-white/10 hover:bg-blue-500/20 text-blue-400 transition-colors"><ExternalLink size={14} /></button>
-                                            </div>
+
                                         </div>
                                     </div>
                                 ))
