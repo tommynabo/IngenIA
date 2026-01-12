@@ -91,6 +91,31 @@ const InstallPage: React.FC = () => {
                     </p>
                 </div>
 
+
+
+                {/* Download Section */}
+                <div className="flex justify-center mb-24 animate-in zoom-in-50 duration-700 delay-200">
+                    <button
+                        onClick={handleDownload}
+                        disabled={downloading}
+                        className="group relative px-12 py-8 bg-gradient-neon rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] hover:shadow-[0_0_80px_-12px_rgba(59,130,246,0.7)] hover:scale-105 active:scale-95 transition-all duration-300"
+                    >
+                        <div className="flex items-center gap-6">
+                            <div className={`p-4 rounded-full bg-white/20 text-white ${downloading ? 'animate-bounce' : 'group-hover:animate-bounce'}`}>
+                                <Download size={32} strokeWidth={3} />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-xs font-bold text-white/80 uppercase tracking-widest mb-1">Versión 1.0.0 (BETA)</div>
+                                <div className="text-3xl font-black text-white tracking-tight">DESCARGAR INGENIA</div>
+                            </div>
+                        </div>
+                        {/* Shiny effect */}
+                        <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none">
+                            <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] translate-x-[-150%] group-hover:animate-[shine_1.5s_infinite]" />
+                        </div>
+                    </button>
+                </div>
+
                 {/* VSL Video Section - Robust & Visible */}
                 <div className="relative max-w-3xl mx-auto mb-20 animate-in fade-in zoom-in-95 duration-1000">
                     <div className="relative group">
@@ -122,29 +147,6 @@ const InstallPage: React.FC = () => {
                     animation: border-flow 4s ease infinite;
                 }
             `}</style>
-
-                {/* Download Section */}
-                <div className="flex justify-center mb-24 animate-in zoom-in-50 duration-700 delay-200">
-                    <button
-                        onClick={handleDownload}
-                        disabled={downloading}
-                        className="group relative px-12 py-8 bg-gradient-neon rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] hover:shadow-[0_0_80px_-12px_rgba(59,130,246,0.7)] hover:scale-105 active:scale-95 transition-all duration-300"
-                    >
-                        <div className="flex items-center gap-6">
-                            <div className={`p-4 rounded-full bg-white/20 text-white ${downloading ? 'animate-bounce' : 'group-hover:animate-bounce'}`}>
-                                <Download size={32} strokeWidth={3} />
-                            </div>
-                            <div className="text-left">
-                                <div className="text-xs font-bold text-white/80 uppercase tracking-widest mb-1">Versión 1.0.0 (BETA)</div>
-                                <div className="text-3xl font-black text-white tracking-tight">DESCARGAR INGENIA</div>
-                            </div>
-                        </div>
-                        {/* Shiny effect */}
-                        <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none">
-                            <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] translate-x-[-150%] group-hover:animate-[shine_1.5s_infinite]" />
-                        </div>
-                    </button>
-                </div>
 
                 {/* Steps Section */}
                 <div className="space-y-12 relative">
