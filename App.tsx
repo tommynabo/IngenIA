@@ -217,13 +217,47 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
                 memberSince={profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Reciente'}
                 history={history}
                 onClearHistory={() => setHistory([])}
-                onAvatarChange={(e: any) => {
-                  // Mock avatar change
+                onAvatarChange={async (e: any) => {
                   const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setUserAvatar(reader.result as string);
-                    reader.readAsDataURL(file);
+                  if (!file) return;
+
+                  try {
+                    // 1. Upload to Supabase Storage
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
+                    const filePath = `${fileName}`;
+
+                    // Optimistic update
+                    const objectUrl = URL.createObjectURL(file);
+                    setUserAvatar(objectUrl);
+
+                    const { error: uploadError } = await supabase.storage
+                      .from('avatars')
+                      .upload(filePath, file);
+
+                    if (uploadError) throw uploadError;
+
+                    // 2. Get Public URL
+                    const { data: { publicUrl } } = supabase.storage
+                      .from('avatars')
+                      .getPublicUrl(filePath);
+
+                    // 3. Update Profile
+                    const { error: updateError } = await supabase
+                      .from('user_profiles')
+                      .update({ avatar_url: publicUrl })
+                      .eq('id', session.user.id);
+
+                    if (updateError) throw updateError;
+
+                    // Final state update (confirm)
+                    setUserAvatar(publicUrl);
+
+                  } catch (error) {
+                    console.error('Error uploading avatar:', error);
+                    alert('Error al actualizar la imagen de perfil');
+                    // Revert on error (could fetch profile again)
+                    fetchProfile(session.user.id);
                   }
                 }}
               />
