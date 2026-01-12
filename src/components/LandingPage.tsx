@@ -185,11 +185,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                             <Star size={12} fill="currentColor" /> Nueva Versión 2.0
                         </div>
                         <h1 className="text-5xl lg:text-7xl font-black tracking-tighter leading-[1.1]">
-                            Tu Copiloto de <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Crecimiento Viral</span>
+                            Tu Motor de <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Visibilidad para LinkedIn</span>
                         </h1>
                         <p className="text-xl text-white/50 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                            Genera contenido de alto impacto para LinkedIn en segundos. Gestiona tu marca personal y ahorra horas cada semana con IA.
+                            Deja de hacer scroll pasivo. Genera comentarios que conectan en perfiles de líderes y responde a tu audiencia en segundos. Convierte conversaciones en seguidores con IA.
                         </p>
 
                         {/* CTA Section (No Form) */}
