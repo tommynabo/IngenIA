@@ -76,34 +76,6 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                 </div>
 
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Tutorial Section */}
-                    <div className="glass rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400"><ExternalLink size={20} /></div>
-                            <h3 className="text-xl font-bold">Cómo generar comentarios, resúmenes y respuestas</h3>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div
-                                onClick={() => setSelectedImage('/tutorial-summary.png')}
-                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
-                            >
-                                <img src="/tutorial-summary.png" alt="Tutorial paso 1" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
-                                </div>
-                            </div>
-                            <div
-                                onClick={() => setSelectedImage('/tutorial-reply.png')}
-                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
-                            >
-                                <img src="/tutorial-reply.png" alt="Tutorial paso 2" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="glass rounded-[2.5rem] overflow-hidden flex flex-col h-full max-h-[650px]">
                         <div className="p-8 border-b border-white/5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
@@ -135,6 +107,34 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                                     </div>
                                 ))
                             )}
+                        </div>
+                    </div>
+
+                    {/* Tutorial Section */}
+                    <div className="glass rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400"><ExternalLink size={20} /></div>
+                            <h3 className="text-xl font-bold">Cómo generar comentarios, resúmenes y respuestas</h3>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div
+                                onClick={() => setSelectedImage('/tutorial-summary.png')}
+                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
+                            >
+                                <img src="/tutorial-summary.png" alt="Tutorial paso 1" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
+                                </div>
+                            </div>
+                            <div
+                                onClick={() => setSelectedImage('/tutorial-reply.png')}
+                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
+                            >
+                                <img src="/tutorial-reply.png" alt="Tutorial paso 2" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
