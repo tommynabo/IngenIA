@@ -91,17 +91,14 @@ const InstallPage: React.FC = () => {
                     </p>
                 </div>
 
-                {/* VSL Video Section - Top & 3D Style */}
-                <div className="relative perspective-1000 mb-20 max-w-3xl mx-auto animate-in slide-in-from-top-8 fade-in duration-1000">
-                    <div className="relative z-10 transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out group">
+                {/* VSL Video Section - Robust & Visible */}
+                <div className="relative max-w-3xl mx-auto mb-20 animate-in fade-in zoom-in-95 duration-1000">
+                    <div className="relative group">
+                        {/* Animated Gradient Border - Thicker and Moving */}
+                        <div className="absolute -inset-[5px] bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600 rounded-[28px] opacity-100 animate-border-flow blur-sm"></div>
 
-                        {/* Animated Gradient Border - Thicker and Moving around */}
-                        <div className="absolute -inset-[5px] bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600 rounded-3xl opacity-75 group-hover:opacity-100 transition duration-1000 animate-border-flow blur-sm"></div>
-
-                        {/* Sharp inner rim */}
-                        <div className="absolute -inset-[1px] bg-[#050508] rounded-[22px] z-0"></div>
-
-                        <div className="relative z-10 rounded-3xl overflow-hidden bg-black aspect-video border border-white/10 shadow-2xl">
+                        {/* Video Container */}
+                        <div className="relative z-10 rounded-3xl overflow-hidden bg-black aspect-video shadow-2xl border border-white/10">
                             <iframe
                                 src="https://drive.google.com/file/d/1itWO19wFT7-57RX9ohYhD72gVoO3xrAx/preview"
                                 width="100%"
@@ -112,8 +109,6 @@ const InstallPage: React.FC = () => {
                             ></iframe>
                         </div>
                     </div>
-                    {/* Background Glow */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
                 </div>
 
                 <style>{`

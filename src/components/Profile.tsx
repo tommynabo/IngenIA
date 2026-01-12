@@ -77,15 +77,27 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                     {/* Tutorial Section */}
                     <div className="glass rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2.5 rounded-xl bg-green-500/10 text-green-400"><ExternalLink size={20} /></div>
+                            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400"><ExternalLink size={20} /></div>
                             <h3 className="text-xl font-bold">Cómo generar comentarios, resúmenes y respuestas</h3>
                         </div>
                         <div className="grid md:grid-cols-2 gap-4">
-                            <div className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group">
-                                <img src="/uploaded_image_0_1768131058341.png" alt="Tutorial paso 1" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <div
+                                onClick={() => window.open('/uploaded_image_0_1768230367657.png', '_blank')}
+                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
+                            >
+                                <img src="/uploaded_image_0_1768230367657.png" alt="Tutorial paso 1" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
+                                </div>
                             </div>
-                            <div className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group">
-                                <img src="/uploaded_image_1_1768131058341.png" alt="Tutorial paso 2" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <div
+                                onClick={() => window.open('/uploaded_image_1_1768230367657.png', '_blank')}
+                                className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
+                            >
+                                <img src="/uploaded_image_1_1768230367657.png" alt="Tutorial paso 2" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -117,7 +129,6 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                                         </div>
                                         <div className="p-4 rounded-2xl bg-white/5 text-white/90 italic text-sm leading-relaxed relative">
                                             "{item.comment}"
-
                                         </div>
                                     </div>
                                 ))
