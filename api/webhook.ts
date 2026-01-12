@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-    apiVersion: '2023-10-16',
+    apiVersion: '2025-12-15.clover' as any,
 });
 
 const supabase = createClient(
@@ -54,89 +54,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerEmail = session.customer_details?.email?.toLowerCase();
 
-        if (event.type === 'checkout.session.completed') {
-            const session = event.data.object as Stripe.Checkout.Session;
-            const customerEmail = session.customer_details?.email?.toLowerCase();
+        if (customerEmail) {
+            // 0. Check Blacklist
+            const { data: blocked } = await supabase.from('blocked_users').select('email').eq('email', customerEmail).single();
+            if (blocked) {
+                console.log(`BLOCKED ATTEMPT: ${customerEmail} tried to pay again but is blacklisted.`);
+                return res.json({ received: true, status: 'blocked' });
+            }
+
+            // 1. Try to find existing user
+            const { data: profiles, error: profileError } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('email', customerEmail)
+                .single();
+
+            if (profiles && profiles.id) {
+                // EXISTING USER: Activate License
+                const { error: updateError } = await supabase
+                    .from('licenses')
+                    .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() })
+                    .eq('user_id', profiles.id);
+
+                if (updateError) console.error('Error activating license for existing user:', updateError);
+
+            } else {
+                // NEW USER: Add to Pre-Paid Waiting Room
+                const { error: insertError } = await supabase
+                    .from('pre_paid_licenses')
+                    .upsert({ email: customerEmail, status: 'paid' }, { onConflict: 'email' });
+
+                if (insertError) console.error('Error adding to pre-paid list:', insertError);
+            }
+        }
+    } else if (event.type === 'customer.subscription.deleted') {
+        const subscription = event.data.object as Stripe.Subscription;
+        // Fetch customer from Stripe to be safe
+        const customerId = subscription.customer as string;
+        if (customerId) {
+            const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+            const customerEmail = customer.email?.toLowerCase();
 
             if (customerEmail) {
-                // 0. Check Blacklist
-                const { data: blocked } = await supabase.from('blocked_users').select('email').eq('email', customerEmail).single();
-                if (blocked) {
-                    console.log(`BLOCKED ATTEMPT: ${customerEmail} tried to pay again but is blacklisted.`);
-                    return res.json({ received: true, status: 'blocked' });
-                }
+                console.log(`Processing cancellation for: ${customerEmail}`);
 
-                // 1. Try to find existing user
-                const { data: profiles, error: profileError } = await supabase
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', customerEmail)
-                    .single();
+                // 1. Mark License as Cancelled/Banned
+                const { data: profile } = await supabase.from('user_profiles').select('id, last_ip').eq('email', customerEmail).single();
 
-                if (profiles && profiles.id) {
-                    // EXISTING USER: Activate License
-                    const { error: updateError } = await supabase
-                        .from('licenses')
-                        .update({ status: 'active', expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() })
-                        .eq('user_id', profiles.id);
+                if (profile) {
+                    await supabase.from('licenses').update({ status: 'banned' }).eq('user_id', profile.id);
 
-                    if (updateError) console.error('Error activating license for existing user:', updateError);
+                    // 2. Add to Blacklist (Email AND IP)
+                    // Block User Entry
+                    await supabase.from('blocked_users').upsert({
+                        email: customerEmail,
+                        ip_address: profile.last_ip,
+                        user_id: profile.id,
+                        reason: 'subscription_cancelled'
+                    });
 
-                } else {
-                    // NEW USER: Add to Pre-Paid Waiting Room
-                    const { error: insertError } = await supabase
-                        .from('pre_paid_licenses')
-                        .upsert({ email: customerEmail, status: 'paid' }, { onConflict: 'email' });
-
-                    if (insertError) console.error('Error adding to pre-paid list:', insertError);
-                }
-            }
-        } else if (event.type === 'customer.subscription.deleted') {
-            const subscription = event.data.object as Stripe.Subscription;
-            // Stripe subscriptions might not have email directly on the object sometimes, need to fetch customer or rely on metadata if set.
-            // Assuming we can get it via expansion or if it's there. 
-            // Safer: Fetch customer from Stripe.
-            const customerId = subscription.customer as string;
-            if (customerId) {
-                const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-                const customerEmail = customer.email?.toLowerCase();
-
-                if (customerEmail) {
-                    console.log(`Processing cancellation for: ${customerEmail}`);
-
-                    // 1. Mark License as Cancelled/Banned
-                    // 1. Mark License as Cancelled/Banned
-                    const { data: profile } = await supabase.from('user_profiles').select('id, last_ip').eq('email', customerEmail).single();
-
-                    if (profile) {
-                        await supabase.from('licenses').update({ status: 'banned' }).eq('user_id', profile.id);
-
-                        // 2. Add to Blacklist (Email AND IP)
-                        // Block User Entry
-                        await supabase.from('blocked_users').upsert({
-                            email: customerEmail,
+                    // Block IP Explicitly if known
+                    if (profile.last_ip) {
+                        await supabase.from('blocked_ips').upsert({
                             ip_address: profile.last_ip,
-                            user_id: profile.id,
-                            reason: 'subscription_cancelled'
-                        });
-
-                        // Block IP Explicitly if known
-                        if (profile.last_ip) {
-                            await supabase.from('blocked_ips').upsert({
-                                ip_address: profile.last_ip,
-                                reason: `Associated with banned user ${customerEmail}`
-                            });
-                        }
-                    } else {
-                        // Fallback just email block if no profile found
-                        await supabase.from('blocked_users').upsert({
-                            email: customerEmail,
-                            reason: 'subscription_cancelled'
+                            reason: `Associated with banned user ${customerEmail}`
                         });
                     }
+                } else {
+                    // Fallback just email block if no profile found
+                    await supabase.from('blocked_users').upsert({
+                        email: customerEmail,
+                        reason: 'subscription_cancelled'
+                    });
                 }
             }
         }
-
-        res.json({ received: true });
     }
+
+    res.json({ received: true });
+}
