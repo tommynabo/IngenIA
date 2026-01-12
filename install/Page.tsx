@@ -82,24 +82,22 @@ const InstallPage: React.FC = () => {
             </nav>
 
             <main className="max-w-4xl mx-auto px-6 pb-32">
+                <div className="text-center space-y-6 mb-12 animate-in slide-in-from-bottom-8 fade-in duration-700">
+                    <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white pb-2">
+                        Instalación Rápida
+                    </h1>
+                    <p className="text-xl text-white/40 font-medium max-w-2xl mx-auto">
+                        Configura tu motor de ingenio en menos de 2 minutos.
+                    </p>
+                </div>
+
                 {/* VSL Video Section - Top & 3D Style */}
-                <div className="relative perspective-1000 mb-16 max-w-3xl mx-auto animate-in slide-in-from-top-8 fade-in duration-1000">
+                <div className="relative perspective-1000 mb-20 max-w-3xl mx-auto animate-in slide-in-from-top-8 fade-in duration-1000">
                     <div className="relative z-10 transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
                         <VSLVideo className="w-full shadow-2xl" />
                     </div>
                     {/* Background Glow */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
-                </div>
-
-                <div className="text-center space-y-6 mb-16 animate-in slide-in-from-bottom-8 fade-in duration-700">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 pb-2">
-                        Comienza a usar <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">IngenIA ahora.</span>
-                    </h1>
-                    <p className="text-xl text-white/40 font-medium max-w-2xl mx-auto">
-                        Sigue estos sencillos pasos para activar tu superpoder en LinkedIn.
-                        <br className="hidden md:block" /> Instalación manual en 2 minutos (Requiere descomprimir).
-                    </p>
                 </div>
 
                 {/* VSL Video Section */}
