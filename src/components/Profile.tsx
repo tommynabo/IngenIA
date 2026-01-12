@@ -1,5 +1,5 @@
-import React from 'react';
-import { UserCircle, ChevronRight, Activity, History, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserCircle, ChevronRight, Activity, History, ExternalLink, X } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 interface ProfileProps {
@@ -14,6 +14,8 @@ interface ProfileProps {
 }
 
 export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar, totalUsage, memberSince, history, onClearHistory, onAvatarChange }) => {
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="flex items-center gap-4 mb-8">
@@ -82,19 +84,19 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                         </div>
                         <div className="grid md:grid-cols-2 gap-4">
                             <div
-                                onClick={() => window.open('/uploaded_image_0_1768230367657.png', '_blank')}
+                                onClick={() => setSelectedImage('/tutorial-summary.png')}
                                 className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
                             >
-                                <img src="/uploaded_image_0_1768230367657.png" alt="Tutorial paso 1" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <img src="/tutorial-summary.png" alt="Tutorial paso 1" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
                                 </div>
                             </div>
                             <div
-                                onClick={() => window.open('/uploaded_image_1_1768230367657.png', '_blank')}
+                                onClick={() => setSelectedImage('/tutorial-reply.png')}
                                 className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 group cursor-pointer relative aspect-[16/5]"
                             >
-                                <img src="/uploaded_image_1_1768230367657.png" alt="Tutorial paso 2" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                <img src="/tutorial-reply.png" alt="Tutorial paso 2" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <span className="text-xs font-bold uppercase tracking-widest text-white">Ver Imagen</span>
                                 </div>
@@ -137,6 +139,20 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                     </div>
                 </div>
             </div>
+            {/* Image Modal */}
+            {selectedImage && (
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSelectedImage(null)}>
+                    <button className="absolute top-4 right-4 p-2 text-white/50 hover:text-white transition-colors">
+                        <X size={32} />
+                    </button>
+                    <img
+                        src={selectedImage}
+                        alt="Full preview"
+                        className="max-w-full max-h-full object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     )
 }
