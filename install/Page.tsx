@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Download, ShieldCheck, FileInput, Key, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { VSLVideo } from '../src/components/VSLVideo';
+
 
 const GlassCard: React.FC<{
     children: React.ReactNode;
@@ -93,15 +93,40 @@ const InstallPage: React.FC = () => {
 
                 {/* VSL Video Section - Top & 3D Style */}
                 <div className="relative perspective-1000 mb-20 max-w-3xl mx-auto animate-in slide-in-from-top-8 fade-in duration-1000">
-                    <div className="relative z-10 transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out">
-                        <VSLVideo className="w-full shadow-2xl" />
+                    <div className="relative z-10 transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-y-[0deg] hover:rotate-x-[0deg] transition-transform duration-700 ease-out group">
+
+                        {/* Animated Gradient Border - Thicker and Moving around */}
+                        <div className="absolute -inset-[5px] bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600 rounded-3xl opacity-75 group-hover:opacity-100 transition duration-1000 animate-border-flow blur-sm"></div>
+
+                        {/* Sharp inner rim */}
+                        <div className="absolute -inset-[1px] bg-[#050508] rounded-[22px] z-0"></div>
+
+                        <div className="relative z-10 rounded-3xl overflow-hidden bg-black aspect-video border border-white/10 shadow-2xl">
+                            <iframe
+                                src="https://drive.google.com/file/d/1itWO19wFT7-57RX9ohYhD72gVoO3xrAx/preview"
+                                width="100%"
+                                height="100%"
+                                allow="autoplay; fullscreen"
+                                allowFullScreen
+                                className="w-full h-full object-cover"
+                            ></iframe>
+                        </div>
                     </div>
                     {/* Background Glow */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-purple-500/20 blur-[60px] -z-10 rounded-full"></div>
                 </div>
 
-                {/* VSL Video Section */}
-
+                <style>{`
+                @keyframes border-flow {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .animate-border-flow {
+                    background-size: 300% 300%;
+                    animation: border-flow 4s ease infinite;
+                }
+            `}</style>
 
                 {/* Download Section */}
                 <div className="flex justify-center mb-24 animate-in zoom-in-50 duration-700 delay-200">
