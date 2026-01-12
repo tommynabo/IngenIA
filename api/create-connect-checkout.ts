@@ -7,10 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-12-15.clover' as any, // Explicit cast to avoid type conflicts if definitions vary
 });
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// REMOVED GLOBAL SUPABASE INIT (Moved inside handler to prevent crash)
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -24,6 +21,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- SECURITY: IP BLOCKING ---
         try {
+            // Init Supabase safely inside logic to avoid global crash on cold start if envs missing
+            const supabase = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+
             const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
             // 1. Check IP/Email Blacklist

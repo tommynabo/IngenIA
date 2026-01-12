@@ -319,30 +319,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                                 </button>
                             </div>
 
-                            {/* Subtle Coupon Input */}
-                            <div className="mt-6">
-                                {!showCouponInput ? (
-                                    <button
-                                        onClick={() => setShowCouponInput(true)}
-                                        className="text-[10px] text-white/20 hover:text-white/40 underline decoration-white/20 transition-all font-medium uppercase tracking-widest"
-                                    >
-                                        ¿Tienes un código?
-                                    </button>
-                                ) : (
-                                    <div className="flex items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-                                        <input
-                                            type="text"
-                                            placeholder="CÓDIGO"
-                                            className="bg-transparent border-b border-white/10 text-center text-xs py-1 w-32 focus:outline-none focus:border-white/40 transition-colors uppercase placeholder:text-white/10"
-                                            onChange={(e) => {
-                                                if (e.target.value === 'INGENIAESLOMEJOR2026') {
-                                                    alert("¡Código Lifetime detectado! Introdúcelo en la siguiente pantalla de pago.");
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+
                         </div>
                     </div>
                 </div>
