@@ -10,45 +10,13 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
+
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'landing' | 'login'>('landing'); // 'landing' = Hero+Register, 'login' = Login Only
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showCookies, setShowCookies] = useState(false);
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [showCouponInput, setShowCouponInput] = useState(false);
-
-    const handleRegisterAndRedirect = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-
-        try {
-            // 1. Sign Up with Password
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { full_name: fullName },
-                },
-            });
-
-            if (error) {
-                console.error("Registration error:", error);
-                alert(error.message);
-                setLoading(false);
-                return;
-            }
-
-            // 2. Redirect to Stripe
-            // Using the link provided previously with prefilled email
-            const stripeUrl = `https://buy.stripe.com/fZuaEQ2crbFB6Hrd0k0Ny08?prefilled_email=${encodeURIComponent(email)}`;
-            window.location.href = stripeUrl;
-
-        } catch (err) {
-            console.error(err);
-            setLoading(false);
-        }
-    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
