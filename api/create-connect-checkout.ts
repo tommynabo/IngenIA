@@ -87,8 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build session params
         const sessionParams: any = {
-            automatic_payment_methods: { enabled: true },
-            payment_method_types: undefined, // Explicitly undefined to avoid conflict
+            payment_method_configuration: 'pmc_1SpmCZ2dSOGFvDretvjY4NNg',
             mode: 'subscription',
             line_items: [{ price: selectedPriceId, quantity: 1 }],
             customer_email: email,
