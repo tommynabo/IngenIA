@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Fix: Use the API version expected by the installed Stripe library types
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2024-12-18.acacia' as any, // Explicit cast to avoid type conflicts if definitions vary
+    // using default api version
 });
 
 // REMOVED GLOBAL SUPABASE INIT (Moved inside handler to prevent crash)
@@ -86,9 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : `${origin}/registro?payment=success&session_id={CHECKOUT_SESSION_ID}`;
 
         // Build session params
-        const sessionParams: any = {
-            automatic_payment_methods: { enabled: true },
-            payment_method_types: undefined, // Explicitly undefined to avoid conflict if types merge
+        const sessionParams: Stripe.Checkout.SessionCreateParams = {
+            payment_method_types: ['card', 'paypal'],
             mode: 'subscription',
             line_items: [{ price: selectedPriceId, quantity: 1 }],
             customer_email: email,
