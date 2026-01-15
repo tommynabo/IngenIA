@@ -87,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build session params
         const sessionParams: Stripe.Checkout.SessionCreateParams = {
-            payment_method_types: ['card', 'paypal'],
+            payment_method_types: ['card'],
             mode: 'subscription',
             line_items: [{ price: selectedPriceId, quantity: 1 }],
             customer_email: email,
