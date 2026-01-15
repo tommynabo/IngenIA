@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Fix: Use the API version expected by the installed Stripe library types
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover' as any, // Explicit cast to avoid type conflicts if definitions vary
+    apiVersion: '2024-12-18.acacia' as any, // Explicit cast to avoid type conflicts if definitions vary
 });
 
 // REMOVED GLOBAL SUPABASE INIT (Moved inside handler to prevent crash)
