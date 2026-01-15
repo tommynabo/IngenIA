@@ -86,8 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : `${origin}/registro?payment=success&session_id={CHECKOUT_SESSION_ID}`;
 
         // Build session params
-        const sessionParams: Stripe.Checkout.SessionCreateParams = {
-            payment_method_configuration: 'cpmt_1Spm0t2dSOGFvDreLJHhKbqO',
+        const sessionParams: any = {
+            automatic_payment_methods: { enabled: true },
+            payment_method_types: undefined, // Explicitly undefined to avoid conflict
             mode: 'subscription',
             line_items: [{ price: selectedPriceId, quantity: 1 }],
             customer_email: email,
