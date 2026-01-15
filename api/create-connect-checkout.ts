@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Fix: Use the API version expected by the installed Stripe library types
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    // using default api version
+    apiVersion: '2023-10-16' as any, // Stable version compatible with payment_method_configuration
 });
 
 // REMOVED GLOBAL SUPABASE INIT (Moved inside handler to prevent crash)
@@ -87,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Build session params
         const sessionParams: Stripe.Checkout.SessionCreateParams = {
-            payment_method_types: ['card'],
+            payment_method_configuration: 'cpmt_1Spm0t2dSOGFvDreLJHhKbqO',
             mode: 'subscription',
             line_items: [{ price: selectedPriceId, quantity: 1 }],
             customer_email: email,
