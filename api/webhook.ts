@@ -2,14 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-    apiVersion: '2023-10-16' as any,
-});
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
 
 // Disable Vercel's default body parser to get the raw stream for Stripe signature verification
 export const config = {
@@ -32,11 +25,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    // --- 1. Load & Validate Secrets ---
+    const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+    const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!sig || !webhookSecret) {
-        return res.status(400).json({ error: 'Missing signature or secret' });
+    if (!STRIPE_SECRET_KEY) {
+        console.error('CRITICAL ERROR: STRIPE_SECRET_KEY is missing in environment variables.');
+        return res.status(500).json({ error: 'Server Misconfiguration: STRIPE_SECRET_KEY missing' });
+    }
+    if (!STRIPE_WEBHOOK_SECRET) {
+        console.error('CRITICAL ERROR: STRIPE_WEBHOOK_SECRET is missing in environment variables.');
+        return res.status(500).json({ error: 'Server Misconfiguration: STRIPE_WEBHOOK_SECRET missing' });
+    }
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        console.error('CRITICAL ERROR: Supabase credentials missing.');
+        return res.status(500).json({ error: 'Server Misconfiguration: Supabase credentials missing' });
+    }
+
+    // --- 2. Initialize Clients Safely ---
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16' as any, // Stable version
+    });
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const sig = req.headers['stripe-signature'];
+
+    if (!sig) {
+        return res.status(400).json({ error: 'Missing stripe-signature header' });
     }
 
     let event: Stripe.Event;
@@ -44,9 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         // Read raw body from request stream
         const rawBody = await buffer(req);
-        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+        event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err: any) {
-        console.error(`Webhook Error: ${err.message}`);
+        console.error(`Webhook Signature Verification Failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
