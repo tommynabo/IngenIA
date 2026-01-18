@@ -27,13 +27,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
     const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Support both naming conventions to prevent config errors
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const missingVars = [];
     if (!STRIPE_SECRET_KEY) missingVars.push('STRIPE_SECRET_KEY');
     if (!STRIPE_WEBHOOK_SECRET) missingVars.push('STRIPE_WEBHOOK_SECRET');
-    if (!SUPABASE_URL) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+    if (!SUPABASE_URL) missingVars.push('NEXT_PUBLIC_SUPABASE_URL / VITE_SUPABASE_URL');
     if (!SUPABASE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
 
     if (missingVars.length > 0) {
