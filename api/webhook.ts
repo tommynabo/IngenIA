@@ -30,12 +30,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_KEY) {
-        console.error('CRITICAL: Missing env variables in webhook');
-        // Return 200 to prevent Stripe retries if we can't fix it from here, 
-        // but normally 500 is technically correct. However, to stop email spam, 200 is safer if it's a permanent config issue.
-        // We'll return 500 to alert the user, as this IS a server error.
-        return res.status(500).json({ error: 'Server config error' });
+    const missingVars = [];
+    if (!STRIPE_SECRET_KEY) missingVars.push('STRIPE_SECRET_KEY');
+    if (!STRIPE_WEBHOOK_SECRET) missingVars.push('STRIPE_WEBHOOK_SECRET');
+    if (!SUPABASE_URL) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+    if (!SUPABASE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (missingVars.length > 0) {
+        console.error(`CRITICAL: Missing env variables: ${missingVars.join(', ')}`);
+        // Return 500 with details so user can see it in Stripe Dashboard
+        return res.status(500).json({
+            error: 'Server config error',
+            missing_variables: missingVars
+        });
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
