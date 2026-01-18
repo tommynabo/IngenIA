@@ -150,7 +150,19 @@ Contexto: Estás tomando un café. Hablas directo, sin filtros corporativos, pen
     const { data: lData } = await supabase.from('licenses').select('*').eq('user_id', userId).single();
     if (lData) {
       setLicenseKey(lData.key);
-      setLicenseStatus(lData.status);
+
+      // Check Expiration
+      if (lData.expires_at) {
+        const expiresDate = new Date(lData.expires_at);
+        const now = new Date();
+        if (expiresDate < now) {
+          setLicenseStatus('inactive'); // Expired
+        } else {
+          setLicenseStatus(lData.status);
+        }
+      } else {
+        setLicenseStatus(lData.status);
+      }
     }
 
     // History
