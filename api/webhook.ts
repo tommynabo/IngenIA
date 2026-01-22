@@ -117,16 +117,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Calculate new expiry
             // period_end is in seconds
             const periodEnd = invoice.lines.data[0]?.period.end;
+            // Fix: Access interval safely via price.recurring or fallback to any for plan if types are mismatched
+            const lineItem = invoice.lines.data[0] as any;
+            const interval = lineItem?.price?.recurring?.interval || lineItem?.plan?.interval; // 'month' or 'year'
             const expiresAt = periodEnd ? new Date(periodEnd * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Fallback 30 days
 
             if (customerEmail) {
-                console.log(`Payment Succeeded for: ${customerEmail}. Extending license.`);
+                console.log(`Payment Succeeded for: ${customerEmail}. Extending license. Plan: ${interval}`);
                 const { data: profile } = await supabase.from('user_profiles').select('id').eq('email', customerEmail).single();
 
                 if (profile) {
                     await supabase.from('licenses').update({
                         status: 'active',
-                        expires_at: expiresAt.toISOString()
+                        expires_at: expiresAt.toISOString(),
+                        plan_interval: interval
                     }).eq('user_id', profile.id);
                 }
             }
@@ -143,6 +147,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     await supabase.from('licenses').update({
                         status: 'inactive'
                     }).eq('user_id', profile.id);
+                } else {
+                    console.warn(`Webhook Error: Profile not found for email ${customerEmail} during payment failure event.`);
                 }
             }
         }

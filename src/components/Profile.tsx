@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCircle, ChevronRight, Activity, History, ExternalLink, X } from 'lucide-react';
+import { UserCircle, ChevronRight, Activity, History, ExternalLink, X, Lock, Loader2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 interface ProfileProps {
@@ -15,6 +15,38 @@ interface ProfileProps {
 
 export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar, totalUsage, memberSince, history, onClearHistory, onAvatarChange }) => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const handleUpdatePassword = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            setUpdateMessage({ type: 'error', text: 'La contraseña debe tener al menos 6 caracteres' });
+            return;
+        }
+
+        setIsUpdating(true);
+        setUpdateMessage(null);
+
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+            if (error) throw error;
+
+            setUpdateMessage({ type: 'success', text: 'Contraseña actualizada correctamente' });
+            setNewPassword('');
+            setTimeout(() => {
+                setIsChangingPassword(false);
+                setUpdateMessage(null);
+            }, 2000);
+        } catch (error: any) {
+            console.error('Error updating password:', error);
+            setUpdateMessage({ type: 'error', text: error.message || 'Error al actualizar la contraseña' });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     return (
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
@@ -35,6 +67,58 @@ export const Profile: React.FC<ProfileProps> = ({ session, userName, userAvatar,
                                 <h3 className="text-xl font-bold">{userName}</h3>
                                 <p className="text-sm text-white/40">{session?.user?.email}</p>
                             </div>
+                        </div>
+
+                        {/* Password Change Section */}
+                        <div className="pt-4 border-t border-white/5">
+                            {!isChangingPassword ? (
+                                <button
+                                    onClick={() => setIsChangingPassword(true)}
+                                    className="text-xs font-bold text-white/30 hover:text-white transition-colors uppercase tracking-widest flex items-center gap-2"
+                                >
+                                    <Lock size={12} />
+                                    Cambiar Contraseña
+                                </button>
+                            ) : (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                    <div className="relative">
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="Nueva contraseña"
+                                            className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-white/20"
+                                        />
+                                    </div>
+
+                                    {updateMessage && (
+                                        <p className={`text-[10px] font-bold ${updateMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                                            {updateMessage.text}
+                                        </p>
+                                    )}
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleUpdatePassword}
+                                            disabled={isUpdating}
+                                            className="flex-1 bg-white text-black text-xs font-bold py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+                                        >
+                                            {isUpdating ? <Loader2 size={12} className="animate-spin" /> : 'Guardar'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsChangingPassword(false);
+                                                setNewPassword('');
+                                                setUpdateMessage(null);
+                                            }}
+                                            disabled={isUpdating}
+                                            className="px-3 bg-white/5 text-white/50 text-xs font-bold py-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

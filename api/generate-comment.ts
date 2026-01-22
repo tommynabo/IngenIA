@@ -84,6 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(403).json({ error: 'No active license found for this user' });
         }
 
+        // 1.1 Strict Expiration Check
+        if (license.expires_at) {
+            const expiresDate = new Date(license.expires_at);
+            const now = new Date();
+            if (expiresDate < now) {
+                // Auto-downgrade status if expired (Optional, helps keep DB clean)
+                // await supabase.from('licenses').update({ status: 'inactive' }).eq('key', license.key);
+                return res.status(403).json({ error: 'License expired', expired_at: license.expires_at });
+            }
+        }
+
         // Auto-bind IP if empty
         if (!license.bound_ip) {
             await supabase.from('licenses').update({ bound_ip: ip }).eq('key', license.key);

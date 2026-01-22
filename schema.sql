@@ -37,6 +37,7 @@ create table public.licenses (
   user_id uuid references public.user_profiles(id) on delete cascade, -- Added cascade deletion
   status license_status not null default 'inactive',
   bound_ip text,
+  plan_interval text, -- 'month' or 'year'
   expires_at timestamp with time zone
 );
 
