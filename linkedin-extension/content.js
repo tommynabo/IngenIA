@@ -1,19 +1,22 @@
 // --- IngenIA LinkedIn Extension - content.js ---
-// Final version - Buttons in stats bar, pencil for comments, Insert button
+// Final version v3.1 - Fixed: single pencil, insert in reply box
 
 (function () {
     'use strict';
 
-    console.log('[IngenIA] Script loaded v3.0');
+    console.log('[IngenIA] Script loaded v3.1');
 
     const INJECTED_ATTR = 'data-ingenia-done';
-    const PENCIL_ATTR = 'data-ingenia-pencil';
+    const PENCIL_ATTR = 'data-ingenia-pencil-done';
+
+    // Track processed elements globally
+    const processedResponders = new WeakSet();
 
     // Run injection
     setTimeout(runInjection, 500);
     setTimeout(runInjection, 1500);
     setTimeout(runInjection, 3000);
-    setInterval(runInjection, 2000);
+    setInterval(runInjection, 2500);
 
     // Also observe DOM changes
     const observer = new MutationObserver(() => runInjection());
@@ -87,22 +90,33 @@
         }
     }
 
-    // --- PENCIL for comment replies ---
+    // --- PENCIL for comment replies (ONLY ONE per Responder) ---
     function injectPencils() {
-        // Find all "Responder" text elements
+        // Find all "Responder" elements
         document.querySelectorAll('button, span, a').forEach(el => {
             const text = el.innerText?.trim().toLowerCase();
             if (text !== 'responder' && text !== 'reply') return;
+
+            // Skip if already processed using WeakSet
+            if (processedResponders.has(el)) return;
+
+            // Also check attribute as backup
             if (el.hasAttribute(PENCIL_ATTR)) return;
 
+            // Check if pencil already exists in parent
             const parent = el.parentElement;
             if (!parent) return;
             if (parent.querySelector('.ingenia-pencil')) return;
 
+            // Mark as processed
+            processedResponders.add(el);
             el.setAttribute(PENCIL_ATTR, 'true');
 
-            // Find the comment container - go up to find the comment item
+            // Find the comment container
             const commentItem = el.closest('.comments-comment-item, [class*="comments-comment"], article, [data-id]') || parent.parentElement?.parentElement?.parentElement;
+
+            // Store reference to the Responder button for later
+            const responderBtn = el;
 
             // Create pencil button
             const pencil = document.createElement('button');
@@ -113,16 +127,15 @@
             pencil.onmouseenter = () => { pencil.style.opacity = '1'; pencil.style.transform = 'scale(1.2)'; };
             pencil.onmouseleave = () => { pencil.style.opacity = '0.6'; pencil.style.transform = 'scale(1)'; };
 
-            pencil.addEventListener('click', (e) => {
+            pencil.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Extract comment text directly here
+                // Extract comment text
                 let commentText = '';
                 let authorName = 'Autor';
 
                 if (commentItem) {
-                    // Find the comment text - try multiple selectors
                     const textSelectors = [
                         '.comments-comment-item__main-content',
                         '.feed-shared-comment-item__comment-content',
@@ -139,9 +152,7 @@
                         }
                     }
 
-                    // If still no text, get all text from comment item
                     if (!commentText) {
-                        // Get the main comment text, excluding author name and metadata
                         const allText = commentItem.innerText;
                         const lines = allText.split('\n').filter(l => l.trim().length > 10);
                         if (lines.length > 0) {
@@ -149,7 +160,6 @@
                         }
                     }
 
-                    // Find author
                     const authorSelectors = [
                         '.comments-post-meta__name-text',
                         '.comments-comment-meta__description-title',
@@ -167,19 +177,22 @@
                 }
 
                 if (!commentText) {
-                    alert('No pude encontrar el texto del comentario. Por favor, copia el texto manualmente.');
+                    alert('No pude encontrar el texto del comentario.');
                     return;
                 }
 
-                console.log('[IngenIA] Comment text found:', commentText.substring(0, 50) + '...');
-                console.log('[IngenIA] Author:', authorName);
-
-                // Generate reply
-                handleReply(commentText, authorName, pencil);
+                // Generate reply with reference to responderBtn for insertion
+                handleReply(commentText, authorName, pencil, responderBtn, commentItem);
             });
 
-            parent.appendChild(pencil);
-            console.log('[IngenIA] ✅ Pencil injected');
+            // Insert pencil right after the Responder element
+            if (el.nextSibling) {
+                parent.insertBefore(pencil, el.nextSibling);
+            } else {
+                parent.appendChild(pencil);
+            }
+
+            console.log('[IngenIA] ✅ Single pencil injected');
         });
     }
 
@@ -198,7 +211,7 @@
         return btn;
     }
 
-    // --- Handle post action (summarize/comment) ---
+    // --- Handle post action ---
     async function handlePostAction(context, actionType, button) {
         let licenseKey;
         try {
@@ -214,7 +227,6 @@
             return;
         }
 
-        // Find post text
         const textSelectors = [
             '.feed-shared-update-v2__description',
             '.update-components-text',
@@ -258,7 +270,7 @@
             const response = await callAI(licenseKey, prompt);
 
             if (response?.success) {
-                showModal(response.result, actionType);
+                showModal(response.result, actionType, null, null);
             } else {
                 alert('Error: ' + (response?.error || 'Desconocido'));
             }
@@ -271,8 +283,8 @@
         }
     }
 
-    // --- Handle reply (from pencil) ---
-    async function handleReply(commentText, authorName, button) {
+    // --- Handle reply ---
+    async function handleReply(commentText, authorName, button, responderBtn, commentItem) {
         let licenseKey;
         try {
             const store = await chrome.storage.sync.get(['licenseKey']);
@@ -294,12 +306,11 @@
         try {
             const prompt = `Genera una respuesta profesional y cordial a este comentario de ${authorName}:\n\n"${commentText}"`;
 
-            console.log('[IngenIA] Sending prompt:', prompt);
-
             const response = await callAI(licenseKey, prompt);
 
             if (response?.success) {
-                showModal(response.result, 'reply');
+                // Pass responderBtn and commentItem for proper insertion
+                showModal(response.result, 'reply', responderBtn, commentItem);
             } else {
                 alert('Error: ' + (response?.error || 'Desconocido'));
             }
@@ -312,7 +323,7 @@
         }
     }
 
-    // --- Call AI backend ---
+    // --- Call AI ---
     async function callAI(licenseKey, prompt) {
         return new Promise((resolve, reject) => {
             chrome.runtime.sendMessage({
@@ -320,17 +331,14 @@
                 licenseKey,
                 prompt
             }, res => {
-                if (chrome.runtime.lastError) {
-                    reject(chrome.runtime.lastError);
-                } else {
-                    resolve(res);
-                }
+                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                else resolve(res);
             });
         });
     }
 
-    // --- Show result modal ---
-    function showModal(text, actionType) {
+    // --- Show modal ---
+    function showModal(text, actionType, responderBtn, commentItem) {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;';
 
@@ -348,7 +356,7 @@
         const btns = document.createElement('div');
         btns.style.cssText = 'display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;';
 
-        // Insert button (for comment/reply)
+        // Insert button
         if (actionType === 'comment' || actionType === 'reply') {
             const insertBtn = document.createElement('button');
             insertBtn.textContent = '📥 Insertar';
@@ -356,7 +364,13 @@
             insertBtn.onmouseenter = () => { insertBtn.style.background = '#004182'; };
             insertBtn.onmouseleave = () => { insertBtn.style.background = '#0a66c2'; };
             insertBtn.onclick = () => {
-                insertTextInCommentBox(text);
+                if (actionType === 'reply' && responderBtn) {
+                    // For replies: click Responder first, then insert in the reply box
+                    insertReplyText(text, responderBtn, commentItem);
+                } else {
+                    // For comments: insert in main comment box
+                    insertTextInCommentBox(text);
+                }
                 overlay.remove();
             };
             btns.appendChild(insertBtn);
@@ -395,7 +409,46 @@
         document.body.appendChild(overlay);
     }
 
-    // --- Insert text into LinkedIn comment box ---
+    // --- Insert reply text (click Responder first, then insert) ---
+    function insertReplyText(text, responderBtn, commentItem) {
+        // First, click the "Responder" button to open the reply box
+        if (responderBtn) {
+            responderBtn.click();
+        }
+
+        // Wait for the reply box to appear, then insert text
+        setTimeout(() => {
+            // Look for the reply box near the comment item
+            let replyBox = null;
+
+            // Try to find reply box within or near the comment
+            if (commentItem) {
+                replyBox = commentItem.querySelector('.ql-editor[contenteditable="true"], [contenteditable="true"]');
+            }
+
+            // If not found, look for any recently appeared editor
+            if (!replyBox) {
+                const allEditors = document.querySelectorAll('.ql-editor[contenteditable="true"], [contenteditable="true"][data-placeholder]');
+                // Get the last one (most recently opened)
+                if (allEditors.length > 0) {
+                    replyBox = allEditors[allEditors.length - 1];
+                }
+            }
+
+            if (replyBox) {
+                replyBox.innerHTML = `<p>${text}</p>`;
+                replyBox.focus();
+                replyBox.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[IngenIA] ✅ Reply text inserted');
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(text);
+                alert('Se ha abierto el cuadro de respuesta. El texto ha sido copiado al portapapeles.');
+            }
+        }, 500);
+    }
+
+    // --- Insert text in main comment box ---
     function insertTextInCommentBox(text) {
         const selectors = [
             '.comments-comment-box__form .ql-editor',
