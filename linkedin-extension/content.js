@@ -1,5 +1,5 @@
 // --- IngenIA LinkedIn Extension - content.js ---
-// Buttons in stats bar, pencil only for comments
+// Buttons in stats bar, pencil for comments, improved modal with Insert
 
 (function () {
     'use strict';
@@ -10,9 +10,14 @@
     const PENCIL_ATTR = 'data-ingenia-pencil';
 
     // Run injection
-    setTimeout(runInjection, 1000);
-    setTimeout(runInjection, 2000);
+    setTimeout(runInjection, 500);
+    setTimeout(runInjection, 1500);
+    setTimeout(runInjection, 3000);
     setInterval(runInjection, 2000);
+
+    // Also observe DOM changes
+    const observer = new MutationObserver(() => runInjection());
+    observer.observe(document.body, { childList: true, subtree: true });
 
     function runInjection() {
         try {
@@ -25,9 +30,6 @@
 
     // --- POST BUTTONS (in the stats bar, next to "X comentarios") ---
     function injectPostButtons() {
-        // Find elements that contain "comentarios" or "comments" text
-        // This is the stats row where we want to place our buttons
-
         const walker = document.createTreeWalker(
             document.body,
             NodeFilter.SHOW_TEXT,
@@ -39,24 +41,18 @@
         while (node = walker.nextNode()) {
             const text = node.textContent.trim().toLowerCase();
 
-            // Look for "X comentarios" or "X comments"
             if (text.includes('comentario') || text.includes('comment')) {
-                // Make sure it's the stats count, not a button
                 if (text.includes('añadir') || text.includes('add')) continue;
 
                 let element = node.parentElement;
                 if (!element) continue;
 
-                // Find the stats row container (parent that holds likes count + comments count)
                 let statsRow = null;
                 let current = element;
                 for (let i = 0; i < 5; i++) {
                     if (!current) break;
-
-                    // Stats row usually has flex display and contains reaction counts
                     const hasReactions = current.querySelector('[class*="reaction"], [class*="social-counts"], [class*="social-details"]');
                     const style = window.getComputedStyle(current);
-
                     if (hasReactions || (style.display === 'flex' && current.innerText.includes('comentario'))) {
                         statsRow = current;
                         break;
@@ -64,52 +60,36 @@
                     current = current.parentElement;
                 }
 
-                if (!statsRow) {
-                    // Fallback: go up 2-3 levels
-                    statsRow = element.parentElement?.parentElement || element.parentElement;
-                }
-
+                if (!statsRow) statsRow = element.parentElement?.parentElement || element.parentElement;
                 if (!statsRow) continue;
                 if (statsRow.hasAttribute(INJECTED_ATTR)) continue;
 
-                // Make sure we're not in a comment section
                 const isInComment = element.closest('.comments-comment-item, .comments-comments-list, [class*="comment-item"]');
                 if (isInComment) continue;
 
-                // Mark as done
                 statsRow.setAttribute(INJECTED_ATTR, 'true');
 
-                // Find the post container for text extraction
                 const postContainer = statsRow.closest('div[data-urn], .feed-shared-update-v2, article') || statsRow.parentElement?.parentElement?.parentElement;
 
-                // Create button container
                 const container = document.createElement('div');
                 container.className = 'ingenia-btns';
-                container.style.cssText = `
-                    display: inline-flex !important;
-                    align-items: center !important;
-                    gap: 6px !important;
-                    margin-left: auto !important;
-                    flex-shrink: 0 !important;
-                `;
+                container.style.cssText = 'display:inline-flex!important;align-items:center!important;gap:6px!important;margin-left:auto!important;flex-shrink:0!important;';
 
-                // Create buttons
                 const btnResumen = createBtn('📝 Resumir', () => handleClick(postContainer, 'summarize', btnResumen));
                 const btnComentar = createBtn('⚡ Comentar', () => handleClick(postContainer, 'comment', btnComentar));
 
                 container.appendChild(btnResumen);
                 container.appendChild(btnComentar);
-
-                // Append to stats row
                 statsRow.appendChild(container);
 
-                console.log('[IngenIA] ✅ Post buttons injected in stats row');
+                console.log('[IngenIA] ✅ Post buttons injected');
             }
         }
     }
 
     // --- PENCIL for comment replies ---
     function injectPencils() {
+        // Method 1: Find by text
         const walker = document.createTreeWalker(
             document.body,
             NodeFilter.SHOW_TEXT,
@@ -121,34 +101,45 @@
         while (node = walker.nextNode()) {
             const text = node.textContent.trim().toLowerCase();
 
-            // Find "Responder" buttons in comments
             if (text === 'responder' || text === 'reply') {
                 let element = node.parentElement;
                 if (!element) continue;
-                if (element.hasAttribute(PENCIL_ATTR)) continue;
 
-                // Make sure we're in a comment
-                const commentItem = element.closest('.comments-comment-item, .comments-comments-list, [class*="comment-item"], article');
-                if (!commentItem) continue;
+                // Check if pencil already exists nearby
+                const parent = element.parentElement;
+                if (!parent) continue;
+                if (parent.querySelector('.ingenia-pencil')) continue;
+                if (element.hasAttribute(PENCIL_ATTR)) continue;
 
                 element.setAttribute(PENCIL_ATTR, 'true');
 
+                // Find the comment context
+                const commentItem = element.closest('.comments-comment-item, [class*="comment"], article') || element.parentElement?.parentElement;
+
                 // Create pencil button
                 const pencil = document.createElement('button');
+                pencil.className = 'ingenia-pencil';
                 pencil.innerHTML = '✏️';
                 pencil.title = 'Generar respuesta con IA';
                 pencil.style.cssText = `
                     background: transparent !important;
                     border: none !important;
                     cursor: pointer !important;
-                    font-size: 16px !important;
-                    padding: 2px 6px !important;
-                    margin-left: 4px !important;
-                    opacity: 0.7 !important;
-                    transition: opacity 0.2s !important;
+                    font-size: 14px !important;
+                    padding: 0 4px !important;
+                    margin-left: 8px !important;
+                    opacity: 0.6 !important;
+                    transition: opacity 0.2s, transform 0.2s !important;
+                    vertical-align: middle !important;
                 `;
-                pencil.onmouseenter = () => { pencil.style.opacity = '1'; };
-                pencil.onmouseleave = () => { pencil.style.opacity = '0.7'; };
+                pencil.onmouseenter = () => {
+                    pencil.style.opacity = '1';
+                    pencil.style.transform = 'scale(1.2)';
+                };
+                pencil.onmouseleave = () => {
+                    pencil.style.opacity = '0.6';
+                    pencil.style.transform = 'scale(1)';
+                };
 
                 pencil.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -156,43 +147,62 @@
                     handleClick(commentItem, 'reply', pencil);
                 });
 
-                // Insert after the Responder text/button
-                if (element.parentNode) {
+                // Insert after the Responder element
+                if (element.nextSibling) {
                     element.parentNode.insertBefore(pencil, element.nextSibling);
-                    console.log('[IngenIA] ✅ Pencil injected');
+                } else {
+                    element.parentNode.appendChild(pencil);
                 }
+
+                console.log('[IngenIA] ✅ Pencil injected next to Responder');
             }
         }
+
+        // Method 2: Also find by button/span structure
+        document.querySelectorAll('button, span').forEach(el => {
+            const text = el.innerText?.trim().toLowerCase();
+            if (text === 'responder' || text === 'reply') {
+                if (el.hasAttribute(PENCIL_ATTR)) return;
+                const parent = el.parentElement;
+                if (!parent) return;
+                if (parent.querySelector('.ingenia-pencil')) return;
+
+                el.setAttribute(PENCIL_ATTR, 'true');
+
+                const commentItem = el.closest('.comments-comment-item, [class*="comment"], article') || el.parentElement?.parentElement;
+
+                const pencil = document.createElement('button');
+                pencil.className = 'ingenia-pencil';
+                pencil.innerHTML = '✏️';
+                pencil.title = 'Generar respuesta con IA';
+                pencil.style.cssText = 'background:transparent!important;border:none!important;cursor:pointer!important;font-size:14px!important;padding:0 4px!important;margin-left:8px!important;opacity:0.6!important;vertical-align:middle!important;';
+                pencil.onmouseenter = () => { pencil.style.opacity = '1'; };
+                pencil.onmouseleave = () => { pencil.style.opacity = '0.6'; };
+
+                pencil.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleClick(commentItem, 'reply', pencil);
+                });
+
+                parent.appendChild(pencil);
+                console.log('[IngenIA] ✅ Pencil injected (method 2)');
+            }
+        });
     }
 
     // --- Create styled button ---
     function createBtn(label, onClick) {
         const btn = document.createElement('button');
         btn.innerHTML = label;
-        btn.style.cssText = `
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background: #0a66c2 !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 14px !important;
-            padding: 4px 10px !important;
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
-            white-space: nowrap !important;
-        `;
-
+        btn.style.cssText = 'display:inline-flex!important;align-items:center!important;justify-content:center!important;background:#0a66c2!important;color:white!important;border:none!important;border-radius:14px!important;padding:4px 10px!important;font-size:12px!important;font-weight:600!important;cursor:pointer!important;white-space:nowrap!important;';
         btn.onmouseenter = () => { btn.style.background = '#004182'; };
         btn.onmouseleave = () => { btn.style.background = '#0a66c2'; };
-
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             onClick();
         });
-
         return btn;
     }
 
@@ -212,8 +222,7 @@
             return;
         }
 
-        // Get text
-        const textEl = context?.querySelector('.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view, .comments-comment-item__main-content') || context;
+        const textEl = context?.querySelector('.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view, .comments-comment-item__main-content, [class*="comment-text"]') || context;
         const postText = textEl?.innerText?.trim() || '';
 
         if (!postText) {
@@ -221,11 +230,9 @@
             return;
         }
 
-        // Get author
-        const authorEl = context?.querySelector('.update-components-actor__name, .feed-shared-actor__name, .comments-post-meta__name-text');
+        const authorEl = context?.querySelector('.update-components-actor__name, .feed-shared-actor__name, .comments-post-meta__name-text, [class*="comment-meta"]');
         const author = authorEl?.innerText?.split('\n')[0] || 'Autor';
 
-        // Show loading
         const orig = button.innerHTML;
         button.innerHTML = '⏳';
         button.disabled = true;
@@ -252,7 +259,7 @@
             });
 
             if (response?.success) {
-                showModal(response.result);
+                showModal(response.result, actionType);
             } else {
                 alert('Error: ' + (response?.error || 'Desconocido'));
             }
@@ -265,43 +272,108 @@
         }
     }
 
-    // --- Show result modal ---
-    function showModal(text) {
+    // --- Show result modal (improved UI) ---
+    function showModal(text, actionType) {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999999;display:flex;align-items:center;justify-content:center;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;';
 
         const box = document.createElement('div');
-        box.style.cssText = 'background:white;padding:24px;border-radius:12px;max-width:500px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);';
+        box.style.cssText = 'background:white;padding:28px;border-radius:16px;max-width:600px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4);max-height:80vh;display:flex;flex-direction:column;';
 
-        const title = document.createElement('h3');
-        title.textContent = 'Resultado IngenIA';
-        title.style.cssText = 'margin:0 0 16px;font-size:18px;';
+        // Title
+        const title = document.createElement('h2');
+        title.textContent = actionType === 'summarize' ? '📝 Resumen' : actionType === 'comment' ? '⚡ Comentario Generado' : '✏️ Respuesta Generada';
+        title.style.cssText = 'margin:0 0 20px;font-size:22px;color:#333;';
 
+        // Content
         const content = document.createElement('div');
         content.textContent = text;
-        content.style.cssText = 'white-space:pre-wrap;max-height:300px;overflow-y:auto;margin-bottom:20px;line-height:1.6;';
+        content.style.cssText = 'white-space:pre-wrap;overflow-y:auto;margin-bottom:24px;line-height:1.7;font-size:16px;color:#444;flex:1;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e0e0e0;';
 
+        // Buttons container
         const btns = document.createElement('div');
-        btns.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+        btns.style.cssText = 'display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;';
 
+        // Insert button (only for comment/reply)
+        if (actionType === 'comment' || actionType === 'reply') {
+            const insertBtn = document.createElement('button');
+            insertBtn.textContent = '📥 Insertar';
+            insertBtn.style.cssText = 'background:#0a66c2;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;transition:background 0.2s;';
+            insertBtn.onmouseenter = () => { insertBtn.style.background = '#004182'; };
+            insertBtn.onmouseleave = () => { insertBtn.style.background = '#0a66c2'; };
+            insertBtn.onclick = () => {
+                insertTextInCommentBox(text);
+                overlay.remove();
+            };
+            btns.appendChild(insertBtn);
+        }
+
+        // Copy button
         const copyBtn = document.createElement('button');
-        copyBtn.textContent = 'Copiar';
-        copyBtn.style.cssText = 'background:#0a66c2;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;';
+        copyBtn.textContent = '📋 Copiar';
+        copyBtn.style.cssText = 'background:#0a66c2;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;transition:background 0.2s;';
+        copyBtn.onmouseenter = () => { copyBtn.style.background = '#004182'; };
+        copyBtn.onmouseleave = () => { copyBtn.style.background = '#0a66c2'; };
         copyBtn.onclick = () => {
             navigator.clipboard.writeText(text);
-            copyBtn.textContent = '✓ Copiado';
-            setTimeout(() => { copyBtn.textContent = 'Copiar'; }, 1500);
+            copyBtn.textContent = '✓ Copiado!';
+            copyBtn.style.background = '#2e7d32';
+            setTimeout(() => {
+                copyBtn.textContent = '📋 Copiar';
+                copyBtn.style.background = '#0a66c2';
+            }, 2000);
         };
 
+        // Close button
         const closeBtn = document.createElement('button');
         closeBtn.textContent = 'Cerrar';
-        closeBtn.style.cssText = 'background:#e0e0e0;color:#333;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;';
+        closeBtn.style.cssText = 'background:#e0e0e0;color:#333;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;transition:background 0.2s;';
+        closeBtn.onmouseenter = () => { closeBtn.style.background = '#d0d0d0'; };
+        closeBtn.onmouseleave = () => { closeBtn.style.background = '#e0e0e0'; };
         closeBtn.onclick = () => overlay.remove();
 
         btns.append(copyBtn, closeBtn);
         box.append(title, content, btns);
         overlay.appendChild(box);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+
         document.body.appendChild(overlay);
+    }
+
+    // --- Insert text into LinkedIn comment box ---
+    function insertTextInCommentBox(text) {
+        // Find the comment input box
+        const commentBox = document.querySelector('.comments-comment-box__form .ql-editor, .ql-editor[contenteditable="true"], [contenteditable="true"][data-placeholder*="comentario"], [contenteditable="true"][data-placeholder*="comment"], .comments-comment-texteditor .ql-editor');
+
+        if (commentBox) {
+            commentBox.innerHTML = `<p>${text}</p>`;
+            commentBox.focus();
+
+            // Trigger input event so LinkedIn registers the change
+            const event = new Event('input', { bubbles: true });
+            commentBox.dispatchEvent(event);
+
+            console.log('[IngenIA] ✅ Text inserted in comment box');
+            return;
+        }
+
+        // Fallback: try to find any contenteditable
+        const anyEditable = document.querySelector('[contenteditable="true"]');
+        if (anyEditable) {
+            anyEditable.innerHTML = `<p>${text}</p>`;
+            anyEditable.focus();
+            anyEditable.dispatchEvent(new Event('input', { bubbles: true }));
+            console.log('[IngenIA] ✅ Text inserted (fallback)');
+            return;
+        }
+
+        // Last resort: copy to clipboard
+        navigator.clipboard.writeText(text);
+        alert('No encontré el cuadro de comentario. El texto ha sido copiado al portapapeles.');
     }
 
 })();
