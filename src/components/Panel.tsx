@@ -105,6 +105,7 @@ export const Panel: React.FC<PanelProps> = ({
                                 </div>
                             </div>
 
+
                             {/* Card 3: License (Moved up) */}
                             <div className="glass p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-between group hover:bg-white/[0.02] transition-colors relative overflow-hidden h-full min-h-[300px]">
                                 <div className="flex items-center gap-3 mb-6">
@@ -125,6 +126,83 @@ export const Panel: React.FC<PanelProps> = ({
                                             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div> ACTIVO
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Middle Row: Mobile Generator (New) */}
+                        <div className="glass p-8 rounded-[2.5rem] border border-white/5 flex flex-col space-y-6 group hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-400"><ExternalLink size={20} /></div>
+                                <div>
+                                    <h3 className="text-lg font-bold">Generador Manual (Móvil)</h3>
+                                    <p className="text-white/40 text-sm">Pega aquí un post de LinkedIn si estás desde el móvil.</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <textarea
+                                        id="manual-input"
+                                        className="w-full h-40 bg-[#0a0a0f] border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:border-orange-500/50 resize-none placeholder:text-white/10 text-white/80"
+                                        placeholder="Pega el contenido del post aquí..."
+                                    ></textarea>
+                                    <button
+                                        onClick={async () => {
+                                            const input = (document.getElementById('manual-input') as HTMLTextAreaElement).value;
+                                            if (!input.trim()) return;
+
+                                            const btn = document.getElementById('gen-btn') as HTMLButtonElement;
+                                            const originalText = btn.innerText;
+                                            btn.innerText = 'Generando...';
+                                            btn.disabled = true;
+
+                                            try {
+                                                const res = await fetch('/api/generate-comment', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ userId: session.user.id, prompt: input })
+                                                });
+                                                const data = await res.json();
+                                                if (data.result) {
+                                                    setLastGenerated(data.result);
+                                                    onUpdateStats({ ...stats, usedToday: usedToday + 1, totalUsage: totalUsage + 1 });
+                                                } else {
+                                                    alert('Error: ' + (data.error || 'Unknown'));
+                                                }
+                                            } catch (e) {
+                                                alert('Error de conexión');
+                                            } finally {
+                                                btn.innerText = originalText;
+                                                btn.disabled = false;
+                                            }
+                                        }}
+                                        id="gen-btn"
+                                        className="w-full py-3 bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500 hover:text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Activity size={18} /> Generar Respuesta
+                                    </button>
+                                </div>
+
+                                <div className={`relative rounded-2xl border border-white/5 p-6 bg-[#0a0a0f] flex flex-col ${!lastGenerated ? 'items-center justify-center text-white/20' : ''}`}>
+                                    {lastGenerated ? (
+                                        <>
+                                            <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{lastGenerated}</p>
+                                            <div className="mt-4 flex justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(lastGenerated);
+                                                        alert('Copiado al portapapeles');
+                                                    }}
+                                                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-colors"
+                                                >
+                                                    <Save size={14} /> Copiar Texto
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm font-medium">El resultado aparecerá aquí</span>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -327,11 +327,18 @@ const Paywall: React.FC<{ session: any }> = ({ session }) => {
 // Layout for Authenticated Views
 const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, userAvatar: string, userName: string, licenseStatus: string }> = ({ children, session, userAvatar, userName, licenseStatus }) => {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // STRICT PAYWALL GUARD: If not active, show Paywall ONLY.
   if (licenseStatus !== 'active') {
     return <Paywall session={session} />;
   }
+
+  const NavLink = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
+    <a href={to} className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes(to.replace('/', '')) ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
+      <Icon size={16} /> {label}
+    </a>
+  );
 
   return (
     <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-purple-500/30">
@@ -347,25 +354,36 @@ const AuthorizedLayout: React.FC<{ children: React.ReactNode, session: any, user
 
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5">
-              <a href="/panel" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('panel') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
-                <LayoutDashboard size={16} /> Panel
-              </a>
-              <a href="/user" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('user') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
-                <UserCircle size={16} /> Perfil
-              </a>
-              <a href="/instalacion" className={`px-6 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${location.pathname.includes('instalacion') ? 'bg-white/10 text-white shadow-lg shadow-white/5' : 'text-white/50 hover:text-white'}`}>
-                <Download size={16} /> Instalación
-              </a>
+              <NavLink to="/panel" icon={LayoutDashboard} label="Panel" />
+              <NavLink to="/user" icon={UserCircle} label="Perfil" />
+              <NavLink to="/instalacion" icon={Download} label="Instalación" />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* REMOVED USER CHIP AS REQUESTED */}
-            <button onClick={() => supabase.auth.signOut()} className="p-2 text-white/30 hover:text-white transition-colors" title="Cerrar Sesión">
+            {/* Mobile Hamburger */}
+            <button
+              className="md:hidden p-2 text-white/50 hover:text-white"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+
+            <button onClick={() => supabase.auth.signOut()} className="hidden md:block p-2 text-white/30 hover:text-white transition-colors" title="Cerrar Sesión">
               <LogOut size={20} />
             </button>
           </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/5 bg-[#050508] p-4 flex flex-col gap-2 shadow-2xl animate-in slide-in-from-top-2">
+            <a href="/panel" className="p-4 rounded-xl bg-white/5 flex items-center gap-3 font-bold"><LayoutDashboard size={18} /> Panel</a>
+            <a href="/user" className="p-4 rounded-xl bg-white/5 flex items-center gap-3 font-bold"><UserCircle size={18} /> Perfil</a>
+            <a href="/instalacion" className="p-4 rounded-xl bg-white/5 flex items-center gap-3 font-bold"><Download size={18} /> Instalación</a>
+            <button onClick={() => supabase.auth.signOut()} className="p-4 rounded-xl bg-red-500/10 text-red-400 flex items-center gap-3 font-bold"><LogOut size={18} /> Cerrar Sesión</button>
+          </div>
+        )}
       </nav>
 
       <main className="max-w-[1200px] mx-auto px-6 pt-32 pb-20">
