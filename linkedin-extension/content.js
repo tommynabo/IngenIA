@@ -35,6 +35,7 @@ createDebugIndicator();
 scanAndInject();
 
 // 2. Interval "Hammer" - Checks every 1 second.
+// This is the fallback if MutationObserver misses something.
 setInterval(() => {
     scanAndInject();
 }, 1000);
@@ -50,11 +51,10 @@ function createDebugIndicator() {
     const ind = document.createElement('div');
     ind.title = 'IngenIA Active';
     ind.innerText = '•';
-    ind.style.cssText = 'position:fixed;bottom:10px;left:10px;width:20px;height:20px;background:#00ff00;border:2px solid white;border-radius:50%;z-index:2147483647;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;';
+    // BLUE DOT (#0077b5)
+    ind.style.cssText = 'position:fixed;bottom:10px;left:10px;width:20px;height:20px;background:#0077b5;border:2px solid white;border-radius:50%;z-index:2147483647;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;';
     document.body ? document.body.appendChild(ind) : document.documentElement.appendChild(ind);
 }
-
-
 
 function scanAndInject() {
     try {
@@ -122,8 +122,17 @@ function findActionBar(post) {
         if (isLikeButton) {
             // The action bar is usually the parent (or grandparent) of this button
             // We want the container that holds all these big buttons.
-            // Usually standard structure: Action Bar > Button
-            return btn.parentElement;
+
+            // SIMPLIFIED: Just take the parent. If it's a wrapper, take the grandparent.
+            let container = btn.parentElement;
+
+            // If the parent is very small (like a wrapper span), go up one more.
+            // Heuristic: Action bar usually has multiple children (Like, Comment, etc)
+            if (container.children.length < 2 && container.parentElement) {
+                container = container.parentElement;
+            }
+
+            return container;
         }
     }
 
@@ -207,23 +216,38 @@ function createStyledButton(icon, text, onClick) {
     btn.style.display = 'inline-flex';
     btn.style.alignItems = 'center';
     btn.style.justifyContent = 'center';
-    btn.style.backgroundColor = 'transparent';
-    btn.style.border = '1px solid #0a66c2';
-    btn.style.color = '#0a66c2';
+
+    // Default Blue Style
+    btn.style.backgroundColor = '#0a66c2';
+    btn.style.border = 'none';
     btn.style.borderRadius = '16px';
     btn.style.padding = '0 12px';
     btn.style.height = '32px';
-    btn.style.fontSize = '14px';
+    btn.style.color = 'white';
     btn.style.fontWeight = '600';
+    btn.style.fontSize = '14px';
+
     btn.style.cursor = 'pointer';
     btn.style.transition = 'background-color 0.2s';
 
     btn.onmouseover = () => {
-        btn.style.backgroundColor = 'rgba(10, 102, 194, 0.1)';
+        btn.style.backgroundColor = '#004182';
     };
     btn.onmouseout = () => {
-        btn.style.backgroundColor = 'transparent';
+        btn.style.backgroundColor = '#0a66c2';
     };
+
+    if (!text) {
+        // Mini button (Pencil)
+        btn.style.backgroundColor = 'transparent';
+        btn.style.color = '#666';
+        btn.style.border = 'none';
+        btn.style.padding = '0';
+        btn.style.width = '32px';
+        btn.style.height = '32px';
+        btn.onmouseover = () => { btn.style.backgroundColor = '#f3f3f3'; };
+        btn.onmouseout = () => { btn.style.backgroundColor = 'transparent'; };
+    }
 
     btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -236,18 +260,18 @@ function createStyledButton(icon, text, onClick) {
 // --- Backend Action Logic ---
 
 async function handleAction(postElement, type, button) {
-    // 1. Get License
+    // 1. Get License Key
     let licenseKey;
     try {
         const store = await chrome.storage.sync.get(['licenseKey']);
         licenseKey = store.licenseKey;
     } catch (err) {
-        showToast("⚠️ Error de extensión. Recarga la página.");
+        showToast("⚠️ Extensión invalidada. Recarga la página.");
         return;
     }
 
     if (!licenseKey) {
-        showModal('Falta Licencia', 'Por favor configura tu clave de licencia en la extensión.');
+        showModal('Falta Configuración', 'No tienes configurada la Clave de Licencia. Abre la extensión y pégala.');
         return;
     }
 
@@ -256,7 +280,7 @@ async function handleAction(postElement, type, button) {
         ? '.comments-comment-item__main-content, .feed-shared-comment-item__comment-content'
         : '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view';
 
-    const textNode = postElement.querySelector(textSel) || postElement; // Fallback to whole element text
+    const textNode = postElement.querySelector(textSel) || postElement;
     const postText = textNode.innerText.trim();
 
     if (!postText) {
@@ -264,7 +288,7 @@ async function handleAction(postElement, type, button) {
         return;
     }
 
-    // 3. Extract Author (Best effort)
+    // 3. Extract Author
     const authorSel = (type === 'reply')
         ? '.comments-post-meta__name-text, .comments-comment-meta__description-title'
         : '.update-components-actor__name, .feed-shared-actor__name';
@@ -272,7 +296,7 @@ async function handleAction(postElement, type, button) {
     const authorNode = postElement.querySelector(authorSel);
     let authorName = authorNode ? authorNode.innerText.trim().split('\n')[0] : "Autor";
 
-    // 4. Send to Background
+    // 4. Send Message
     const originalContent = button.innerHTML;
     button.innerHTML = '⏳';
     button.disabled = true;
@@ -294,15 +318,15 @@ async function handleAction(postElement, type, button) {
         });
 
         if (response.success) {
-            showModal('Resultado de IngenIA', response.result, [
+            showModal('Resultado', response.result, [
                 { label: 'Copiar', primary: true, onClick: () => copyToClipboard(response.result) }
             ]);
         } else {
             showToast("❌ Error: " + (response.error || "Desconocido"));
         }
 
-    } catch (error) {
-        console.error(error);
+    } catch (err) {
+        console.error(err);
         showToast("❌ Error de conexión");
     } finally {
         button.innerHTML = originalContent;
@@ -339,7 +363,6 @@ function copyToClipboard(text) {
 }
 
 function showModal(title, text, actions = []) {
-    // Simple modal implementation
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
 
