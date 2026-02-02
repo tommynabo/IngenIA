@@ -28,9 +28,6 @@ function log(msg, ...args) {
 // --- Main Execution ---
 console.log('[IngenIA] SCRIPT STARTED!');
 
-// 0. Visual Debugger (To confirm script load)
-createDebugIndicator();
-
 // 1. Initial aggressive scan
 scanAndInject();
 
@@ -47,15 +44,6 @@ const observer = new MutationObserver((mutations) => {
 });
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
-function createDebugIndicator() {
-    const ind = document.createElement('div');
-    ind.title = 'IngenIA Active';
-    ind.innerText = '•';
-    // BLUE DOT (#0077b5)
-    ind.style.cssText = 'position:fixed;bottom:10px;left:10px;width:20px;height:20px;background:#0077b5;border:2px solid white;border-radius:50%;z-index:2147483647;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;';
-    document.body ? document.body.appendChild(ind) : document.documentElement.appendChild(ind);
-}
-
 function scanAndInject() {
     try {
         injectPostButtons();
@@ -69,10 +57,6 @@ function scanAndInject() {
 
 function injectPostButtons() {
     // 1. Find all possible posts
-    const allDivs = document.querySelectorAll('div, article');
-
-    // We filter "smartly" instead of relying on a huge querySelectorAll string if we can
-    // But querySelectorAll is faster. Let's use the combined selector.
     const combinedSelector = POST_SELECTOR.join(', ');
     const potentialPosts = document.querySelectorAll(combinedSelector);
 
@@ -120,19 +104,36 @@ function findActionBar(post) {
             label.includes('like');
 
         if (isLikeButton) {
-            // The action bar is usually the parent (or grandparent) of this button
-            // We want the container that holds all these big buttons.
+            // TRAVERSE UP until we find the container.
+            // We look for specific classes or a container that looks like the bar.
+            let current = btn.parentElement;
+            for (let i = 0; i < 5; i++) { // Go up max 5 levels
+                if (!current) break;
 
-            // SIMPLIFIED: Just take the parent. If it's a wrapper, take the grandparent.
-            let container = btn.parentElement;
+                const cls = current.className || "";
 
-            // If the parent is very small (like a wrapper span), go up one more.
-            // Heuristic: Action bar usually has multiple children (Like, Comment, etc)
-            if (container.children.length < 2 && container.parentElement) {
-                container = container.parentElement;
+                // Matches standard LinkedIn action bar classes
+                if (cls.includes('social-actions') ||
+                    cls.includes('action-bar') ||
+                    cls.includes('feed-shared-social-action-bar')) {
+                    return current;
+                }
+
+                // Backup: Flex container that is wide
+                if (window.getComputedStyle(current).display === 'flex' && current.offsetWidth > 200) {
+                    return current;
+                }
+
+                current = current.parentElement;
             }
 
-            return container;
+            // If traversal failed, fallback to the button's parent (or grandparent if parent is tiny)
+            // This was the logic that might have failed if parent was a small wrapper.
+            // Let's try to return the parentElement's parentElement if parent is small.
+            if (btn.parentElement && btn.parentElement.offsetWidth < 100) {
+                return btn.parentElement.parentElement;
+            }
+            return btn.parentElement;
         }
     }
 
@@ -146,7 +147,7 @@ function injectButtonsIntoBar(container, postElement) {
     btnContainer.className = 'ingenia-btn-container-small';
     btnContainer.style.display = 'flex';
     btnContainer.style.alignItems = 'center';
-    btnContainer.style.marginLeft = 'auto'; // Push to the right if in a flex container (optional)
+    btnContainer.style.marginLeft = 'auto'; // Push to the right
     btnContainer.style.gap = '8px';
 
     // Summarize Button
@@ -198,7 +199,12 @@ function injectReplyButtonDirectly(referenceBtn, commentContext) {
     iaBtn.className = 'ingenia-btn-mini';
     iaBtn.title = "Generar respuesta con IA";
     iaBtn.style.marginLeft = '5px';
-    iaBtn.style.padding = '4px 8px'; // Smaller for reply
+    iaBtn.style.padding = '0'; // Small padding
+    iaBtn.style.width = '32px';
+    iaBtn.style.height = '32px';
+    iaBtn.style.display = 'flex';
+    iaBtn.style.alignItems = 'center';
+    iaBtn.style.justifyContent = 'center';
 
     if (referenceBtn.parentNode) {
         referenceBtn.parentNode.insertBefore(iaBtn, referenceBtn.nextSibling);
@@ -210,7 +216,7 @@ function injectReplyButtonDirectly(referenceBtn, commentContext) {
 function createStyledButton(icon, text, onClick) {
     const btn = document.createElement('button');
     btn.className = 'ingenia-btn';
-    btn.innerHTML = `<span style="font-size: 1.2em; margin-right: 4px;">${icon}</span> ${text}`;
+    btn.innerHTML = `<span style="font-size: 1.2em; margin-right: ${text ? '4px' : '0'};">${icon}</span> ${text}`;
 
     // Inline styles to guarantee visibility
     btn.style.display = 'inline-flex';
