@@ -26,6 +26,7 @@ function log(msg, ...args) {
 }
 
 // --- Main Execution ---
+console.log('[IngenIA] SCRIPT STARTED!');
 
 // 0. Visual Debugger (To confirm script load)
 createDebugIndicator();
@@ -34,22 +35,23 @@ createDebugIndicator();
 scanAndInject();
 
 // 2. Interval "Hammer" - Checks every 1 second.
-// This is the fallback if MutationObserver misses something.
 setInterval(() => {
     scanAndInject();
 }, 1000);
 
-// 3. Mutation Observer (for immediate reaction)
+// 3. Mutation Observer
+// Observe documentElement to catch body creation if run_at is early, though default is idle.
 const observer = new MutationObserver((mutations) => {
     scanAndInject();
 });
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.documentElement, { childList: true, subtree: true });
 
 function createDebugIndicator() {
     const ind = document.createElement('div');
     ind.title = 'IngenIA Active';
-    ind.style.cssText = 'position:fixed;bottom:5px;left:5px;width:10px;height:10px;background:green;border-radius:50%;z-index:99999;pointer-events:none;';
-    document.body.appendChild(ind);
+    ind.innerText = '•';
+    ind.style.cssText = 'position:fixed;bottom:10px;left:10px;width:20px;height:20px;background:#00ff00;border:2px solid white;border-radius:50%;z-index:2147483647;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;';
+    document.body ? document.body.appendChild(ind) : document.documentElement.appendChild(ind);
 }
 
 
