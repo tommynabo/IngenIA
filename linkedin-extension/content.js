@@ -1,246 +1,331 @@
-// IngenIA V19 - PROPER POST vs COMMENT DISTINCTION
-console.log("🚀 IngenIA V19: Context-Aware Injection");
+// --- Constants ---
+const OBSERVER_TARGET = document.body;
+// Wrapper typically used by LinkedIn feed updates
+const POST_SELECTOR = '.feed-shared-update-v2';
+// New target: The bar with "100 likes - 20 comments"
+const DETAILS_SELECTOR = '.social-details-social-counts, .feed-shared-social-counts';
+// Fallback: Action bar if counts are missing (e.g. 0 likes/comments)
+const ACTION_BAR_SELECTOR = '.feed-shared-social-action-bar';
+const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view';
+const AUTHOR_SELECTOR = '.update-components-actor__name, .feed-shared-actor__name';
 
-// Banner
-const banner = document.createElement('div');
-banner.innerText = "✅ V19";
-banner.style.cssText = "position:fixed; top:10px; right:10px; background:lime; color:black; padding:4px 8px; z-index:999999; border-radius:4px; font-weight:bold; font-size:11px;";
-document.body.appendChild(banner);
-setTimeout(() => banner.remove(), 3000);
+// --- Comment Selectors ---
+const COMMENT_SELECTOR = '.comments-comment-item, .feed-shared-comment-item';
+const COMMENT_ACTIONS_SELECTOR = '.comments-comment-social-bar__actions, .feed-shared-comment-social-bar__actions, .social-action-bar'; // Added generic generic
+const COMMENT_TEXT_SELECTOR = '.comments-comment-item__main-content, .feed-shared-comment-item__comment-content';
+const COMMENT_AUTHOR_SELECTOR = '.comments-post-meta__name-text, .comments-comment-meta__description-title';
 
-const done = new WeakSet();
+// --- State ---
+const INJECTED_ATTR = 'data-ingenia-injected';
 
-setInterval(inject, 600);
+// --- Observer ---
+const observer = new MutationObserver((mutations) => {
+    if (mutations.some(m => m.addedNodes.length > 0)) {
+        scanAndInject();
+    }
+});
 
-function inject() {
-    // =================================================================
-    // 1. POSTS: Find "Recomendar" that is NOT inside a comment
-    //    -> Add Resumir + Comentar buttons
-    // =================================================================
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+observer.observe(OBSERVER_TARGET, { childList: true, subtree: true });
 
-    while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const txt = node.textContent.trim();
-        const parent = node.parentElement;
+// Initial scan
+scanAndInject();
 
-        if (!parent || done.has(parent)) continue;
-
-        // --- POST BUTTONS (Only on main posts, NOT comments) ---
-        if (txt === 'Recomendar' || txt === 'Like') {
-            // CHECK: Is this inside a comment? If YES, skip (comments get pencil only)
-            const isInComment = parent.closest('.comments-comment-item') ||
-                parent.closest('.comments-comment-entity') ||
-                parent.closest('[class*="comment-item"]');
-
-            if (isInComment) continue; // SKIP - this is comment's Recomendar
-
-            done.add(parent);
-
-            // Find action bar container (go up to the flex row)
-            const row = parent.closest('ul') || parent.closest('[class*="action-bar"]') || parent.parentElement?.parentElement;
-            if (!row || row.querySelector('.ing-btns')) continue;
-
-            // Create buttons
-            const group = document.createElement('span');
-            group.className = 'ing-btns';
-            group.style.cssText = 'display:inline-flex; align-items:center; margin-left:10px;';
-            group.innerHTML = `
-                <button class="ing-s" style="background:#0a66c2; color:white; border:none; border-radius:16px; padding:6px 14px; margin-right:6px; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">📝 Resumir</button>
-                <button class="ing-c" style="background:#0a66c2; color:white; border:none; border-radius:16px; padding:6px 14px; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">⚡ Comentar</button>
-            `;
-
-            // Find the POST container for text extraction
-            const post = row.closest('.feed-shared-update-v2') ||
-                row.closest('article') ||
-                row.closest('[data-urn]') ||
-                row.closest('.occludable-update');
-
-            group.querySelector('.ing-s').onclick = e => { e.stopPropagation(); runPost(post, 'summarize', e.target); };
-            group.querySelector('.ing-c').onclick = e => { e.stopPropagation(); runPost(post, 'comment', e.target); };
-
-            row.appendChild(group);
+function scanAndInject() {
+    // 1. Post Buttons (Old Logic - keep for posts)
+    // We can keep the specific logic for main posts if it works, or unify it. 
+    // Let's keep the main posts logic distinct for now to avoid breaking it.
+    const posts = document.querySelectorAll(POST_SELECTOR);
+    posts.forEach(post => {
+        if (post.hasAttribute(INJECTED_ATTR)) return;
+        const targetContainer = post.querySelector(DETAILS_SELECTOR) || post.querySelector(ACTION_BAR_SELECTOR);
+        if (targetContainer) {
+            injectButtons(targetContainer, post);
+            post.setAttribute(INJECTED_ATTR, 'true');
         }
+    });
 
-        // --- COMMENT PENCIL (Only on "Responder" buttons) ---
-        if (txt === 'Responder' || txt === 'Reply') {
-            // Find the comment container
-            const comment = parent.closest('.comments-comment-item') ||
-                parent.closest('.comments-comment-entity') ||
-                parent.closest('article');
+    // 2. Reply Buttons (Robust "Find Text" Logic)
+    // Find ALL buttons on the page
+    const allButtons = document.querySelectorAll('button');
 
-            if (!comment) continue;
+    allButtons.forEach(btn => {
+        // Filter for "Reply" or "Responder"
+        // Check innerText and aria-label
+        const text = (btn.innerText || "").toLowerCase().trim();
+        const label = (btn.getAttribute('aria-label') || "").toLowerCase();
 
-            done.add(parent);
+        // Conditions to be a "Reply" button
+        const isReply = text === 'responder' || text === 'reply' ||
+            label.includes('reply to') || label.includes('responder a');
 
-            // Check no duplicate pencil
-            if (parent.parentElement.querySelector('.ing-pencil')) continue;
+        // Verify it hasn't been handled
+        if (isReply && !btn.dataset.ingeniaHandled) {
+            // Find the container (usually the parent)
+            const container = btn.parentElement;
 
-            const pencil = document.createElement('span');
-            pencil.className = 'ing-pencil';
-            pencil.innerText = '✏️';
-            pencil.title = 'Generar respuesta';
-            pencil.style.cssText = 'cursor:pointer; font-size:16px; margin-left:8px; vertical-align:middle;';
-            pencil.onclick = e => { e.stopPropagation(); runComment(comment, pencil); };
+            // Check if we already injected in this container (avoid dupes)
+            if (container.querySelector('.ingenia-btn-mini')) {
+                btn.dataset.ingeniaHandled = 'true';
+                return;
+            }
 
-            // Insert after the Responder button/span
-            parent.after(pencil);
+            // Find the closest "Comment" or "Post" context to get text later
+            // We need to look up the tree for the comment text
+            const commentItem = btn.closest('.comments-comment-item') ||
+                btn.closest('.feed-shared-comment-item') ||
+                btn.closest('article'); // fallback
+
+            if (commentItem) {
+                injectReplyButtonDirectly(btn, commentItem);
+                btn.dataset.ingeniaHandled = 'true';
+            }
         }
-    }
-}
-
-// --- POST ACTION ---
-async function runPost(post, type, btn) {
-    if (!chrome?.storage?.sync) return alert("Recarga la página");
-    const { licenseKey } = await chrome.storage.sync.get('licenseKey');
-    if (!licenseKey) return alert("Configura tu licencia");
-
-    // TEXT EXTRACTION (Aggressive)
-    let txt = '';
-    if (post) {
-        // Clone and clean
-        const clone = post.cloneNode(true);
-        // Remove action bars, comments, buttons
-        clone.querySelectorAll('button, .comments-comments-list, .feed-shared-social-action-bar, [class*="action-bar"]').forEach(n => n.remove());
-        txt = clone.innerText.trim().substring(0, 1500);
-    }
-
-    // Fallback: Get text from visible area if post not found
-    if (!txt || txt.length < 10) {
-        const visiblePost = document.querySelector('.feed-shared-update-v2');
-        if (visiblePost) {
-            const c = visiblePost.cloneNode(true);
-            c.querySelectorAll('button').forEach(n => n.remove());
-            txt = c.innerText.substring(0, 1000);
-        }
-    }
-
-    if (!txt || txt.length < 10) {
-        alert("No encontré texto del post. Haz scroll para cargarlo.");
-        return;
-    }
-
-    const prompt = type === 'summarize'
-        ? `Resume brevemente este post de LinkedIn:\n\n${txt}`
-        : `Escribe un comentario profesional para este post:\n\n${txt}`;
-
-    sendToAI(prompt, licenseKey, btn, post);
-}
-
-// --- COMMENT ACTION ---
-async function runComment(comment, btn) {
-    if (!chrome?.storage?.sync) return alert("Recarga la página");
-    const { licenseKey } = await chrome.storage.sync.get('licenseKey');
-    if (!licenseKey) return alert("Configura tu licencia");
-
-    // TEXT from comment
-    let txt = '';
-
-    // Try specific selectors first
-    const textEl = comment.querySelector('.comments-comment-item__main-content') ||
-        comment.querySelector('[class*="comment-text"]') ||
-        comment.querySelector('span[dir="ltr"]');
-
-    if (textEl) {
-        txt = textEl.innerText.trim();
-    } else {
-        // Fallback: clone and strip
-        const clone = comment.cloneNode(true);
-        clone.querySelectorAll('button, img, [class*="profile"]').forEach(n => n.remove());
-        txt = clone.innerText.trim().substring(0, 500);
-    }
-
-    if (!txt || txt.length < 5) {
-        alert("No encontré texto del comentario.");
-        return;
-    }
-
-    const prompt = `Responde profesionalmente a este comentario de LinkedIn:\n\n"${txt}"`;
-
-    sendToAI(prompt, licenseKey, btn, comment);
-}
-
-// --- AI CALL ---
-function sendToAI(prompt, licenseKey, btn, context) {
-    const orig = btn.innerText || btn.innerHTML;
-    btn.innerHTML = '⏳';
-
-    chrome.runtime.sendMessage({ action: 'generate_comment', licenseKey, prompt }, r => {
-        btn.innerHTML = orig;
-        if (r?.success) showModal(r.result, context);
-        else alert(r?.error || 'Error al generar');
     });
 }
 
-// --- MODAL UI ---
-function showModal(text, context) {
-    document.getElementById('ing-modal')?.remove();
+function injectReplyButtonDirectly(referenceBtn, commentContext) {
+    // Create mini button
+    const iaBtn = createButton('✏️', '', () => handleAction(commentContext, 'reply', iaBtn));
+    iaBtn.className = 'ingenia-btn-mini';
+    iaBtn.title = "Generar respuesta con IA";
 
-    const ov = document.createElement('div');
-    ov.id = 'ing-modal';
-    ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999999; display:flex; justify-content:center; align-items:center; font-family:-apple-system,sans-serif;';
-
-    ov.innerHTML = `
-        <div style="background:white; padding:24px; border-radius:12px; width:520px; max-width:92%; box-shadow:0 8px 30px rgba(0,0,0,0.25);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="margin:0; font-size:18px; color:#333;">✨ Resultado IngenIA</h3>
-                <span id="close-x" style="cursor:pointer; font-size:22px; color:#999;">×</span>
-            </div>
-            <textarea id="ing-text" style="width:100%; height:130px; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; line-height:1.5; resize:vertical; margin-bottom:18px;">${text}</textarea>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button id="b-copy" style="padding:10px 20px; border:1px solid #0a66c2; background:white; color:#0a66c2; border-radius:24px; font-weight:600; cursor:pointer;">📋 Copiar</button>
-                <button id="b-insert" style="padding:10px 24px; border:none; background:#0a66c2; color:white; border-radius:24px; font-weight:600; cursor:pointer;">📥 Insertar</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(ov);
-
-    const close = () => ov.remove();
-    ov.querySelector('#close-x').onclick = close;
-    ov.onclick = e => { if (e.target === ov) close(); };
-
-    ov.querySelector('#b-copy').onclick = () => {
-        navigator.clipboard.writeText(ov.querySelector('#ing-text').value);
-        ov.querySelector('#b-copy').innerHTML = '✓ Copiado';
-    };
-
-    ov.querySelector('#b-insert').onclick = () => {
-        insertText(ov.querySelector('#ing-text').value, context);
-        close();
-    };
+    // Inject specifically AFTER the reference button (The Reply button)
+    referenceBtn.insertAdjacentElement('afterend', iaBtn);
 }
 
-function insertText(text, context) {
-    // Find or open editor
-    let ed = document.querySelector('.ql-editor[contenteditable="true"]');
+function injectButtons(container, postElement) {
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'ingenia-btn-container-small';
 
-    if (!ed && context) {
-        // Click Responder/Comentar to open
-        const trigger = [...context.querySelectorAll('button, span')].find(b => {
-            const t = (b.innerText || '').toLowerCase();
-            return t.includes('responder') || t.includes('comentar');
-        });
-        if (trigger) {
-            trigger.click();
-            setTimeout(() => {
-                ed = document.querySelector('.ql-editor[contenteditable="true"]') || document.activeElement;
-                if (ed && ed.isContentEditable) {
-                    ed.focus();
-                    document.execCommand('insertText', false, text);
-                } else {
-                    navigator.clipboard.writeText(text);
-                    alert('Copiado (abre el editor manualmente)');
-                }
-            }, 600);
-            return;
-        }
+    // Summarize
+    const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));
+    // Comment
+    const btnComment = createButton('⚡️', 'Comentar', () => handleAction(postElement, 'comment', btnComment));
+
+    btnContainer.appendChild(btnSum);
+    btnContainer.appendChild(btnComment);
+    container.appendChild(btnContainer);
+}
+
+function createButton(icon, text, onClick) {
+    const btn = document.createElement('button');
+    btn.className = 'ingenia-btn';
+    btn.innerHTML = `<span class="ingenia-icon">${icon}</span> ${text}`;
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+    });
+    return btn;
+}
+
+// --- Logic ---
+// --- Logic ---
+async function handleAction(postElement, type, button) {
+    // 1. Get License Key
+    let licenseKey;
+    try {
+        const store = await chrome.storage.sync.get(['licenseKey']);
+        licenseKey = store.licenseKey;
+    } catch (err) {
+        showToast("⚠️ Extensión invalidada. Recarga la página por favor.");
+        return;
     }
 
-    if (ed) {
-        ed.focus();
-        document.execCommand('insertText', false, text);
+    if (!licenseKey) {
+        showModal('Falta Configuración', 'No tienes configurada la Clave de Licencia. Abre la extensión y pégala.');
+        return;
+    }
+
+    // 2. Get Text & Author based on type
+    let textSel = TEXT_SELECTOR;
+    let authSel = AUTHOR_SELECTOR;
+
+    if (type === 'reply') {
+        textSel = COMMENT_TEXT_SELECTOR;
+        authSel = COMMENT_AUTHOR_SELECTOR;
+    }
+
+    // Try finding text
+    const textNode = postElement.querySelector(textSel) || postElement.querySelector(TEXT_SELECTOR); // Fallback
+    const postText = textNode ? textNode.innerText.trim() : "";
+
+    if (!postText) {
+        showModal('Error', 'No pude encontrar texto para procesar.');
+        return;
+    }
+
+    // 3. Get Author
+    const authorNode = postElement.querySelector(authSel) ||
+        postElement.querySelector('.update-components-actor__name') ||
+        postElement.querySelector('.feed-shared-actor__name') ||
+        postElement.querySelector('.comments-post-meta__name-text');
+
+    let authorName = "Desconocido";
+    if (authorNode) {
+        const srOnly = authorNode.querySelector('.visually-hidden');
+        if (srOnly) srOnly.remove();
+        authorName = authorNode.innerText.trim().split('\n')[0];
+    }
+
+    // 4. Prepare Prompt
+    // We send context so the LLM knows who the author is for citation.
+    // Ensure clear separation.
+    let prompt;
+    if (authorName && authorName !== "Desconocido") {
+        prompt = `CONTEXT: The author of the following post is "${authorName}".\n\nPOST CONTENT:\n${postText}\n\n(INSTRUCTION: You MUST cite the author "@${authorName}" in your response, preferably at the end)`;
     } else {
-        navigator.clipboard.writeText(text);
+        prompt = `POST CONTENT:\n${postText}`;
     }
+
+    if (type === 'summarize') {
+        prompt = `Resume esto brevemente en español con puntos clave. El autor es ${authorName}.\n\nTexto: ${postText}`;
+    } else if (type === 'reply') {
+        prompt = `CONTEXTO: Estás respondiendo a un comentario en LinkedIn. El autor del comentario es "${authorName}".\n\nCONTENIDO DEL COMENTARIO:\n${postText}\n\n(INSTRUCCIÓN: Escribe una respuesta amable, profesional y breve (max 2 frases) a este comentario. Usa "@${authorName}" si es apropiado para el contexto. Tono: Cercano pero profesional.)`;
+    }
+
+    // 5. UI Loading
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<div class="ingenia-spinner"></div>';
+    button.disabled = true;
+
+    // 5. Send Message to Background
+    try {
+        const response = await sendMessageToBackground({
+            action: 'generate_comment',
+            licenseKey: licenseKey,
+            prompt: prompt
+        });
+
+        if (response.success) {
+            if (type === 'comment' || type === 'reply') {
+                showModal(type === 'reply' ? 'Respuesta Generada' : 'Comentario Generado', response.result, [
+                    { label: 'Insertar', primary: true, onClick: () => insertText(postElement, response.result) },
+                    { label: 'Copiar', onClick: () => copyToClipboard(response.result) }
+                ]);
+            } else {
+                showModal('Resumen', response.result, [
+                    { label: 'Copiar', primary: true, onClick: () => copyToClipboard(response.result) }
+                ]);
+            }
+        } else {
+            throw new Error(response.error || "Error desconocido");
+        }
+    } catch (err) {
+        console.error(err);
+        showModal('Error', err.message);
+    } finally {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+// Wrapper to handle "Extension context invalidated" gracefully
+function sendMessageToBackground(payload) {
+    return new Promise((resolve, reject) => {
+        try {
+            chrome.runtime.sendMessage(payload, (response) => {
+                if (chrome.runtime.lastError) {
+                    return reject(new Error(chrome.runtime.lastError.message));
+                }
+                resolve(response);
+            });
+        } catch (e) {
+            reject(new Error("Contexto invalidado. Recarga la página."));
+        }
+    });
+}
+
+function insertText(postElement, text) {
+    // Attempt multiple strategies to find the comment box
+    // Strategy 1: Find "Reply" button and click it to open editor if needed
+    const replyBtn = postElement.querySelector('button.reply-action') ||
+        Array.from(postElement.querySelectorAll('button')).find(b => (b.innerText || '').toLowerCase().includes('reply') || (b.innerText || '').toLowerCase().includes('responder'));
+
+    if (replyBtn) replyBtn.click();
+
+    setTimeout(() => {
+        const editor = postElement.querySelector('.ql-editor') ||
+            postElement.querySelector('div[contenteditable="true"]') ||
+            document.activeElement; // Fallback to active element if click focused it
+
+        if (editor && editor.isContentEditable) {
+            editor.focus();
+            // Deprecated but reliable for rich text editors
+            document.execCommand('insertText', false, text);
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            copyToClipboard(text);
+            showToast("No encontré el editor, copiado al portapapeles.");
+        }
+    }, 600); // Slightly reduced wait
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    showToast("¡Copiado!");
+}
+
+// --- UI Components ---
+
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+    position: fixed; bottom: 20px; right: 20px;
+    background: #333; color: white; padding: 12px 24px;
+    border-radius: 8px; z-index: 10001; font-family: sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function showModal(title, text, actions = []) {
+    // Cleanup existing
+    const existing = document.querySelector('.ingenia-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ingenia-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'ingenia-modal';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'ingenia-modal-header';
+    // FIX: Removed spaces in H3 tags
+    header.innerHTML = `<h3 class="ingenia-modal-title">${title}</h3>`;
+    const close = document.createElement('button');
+    close.className = 'ingenia-close-btn';
+    close.innerHTML = '&times;';
+    close.onclick = () => overlay.remove();
+    header.appendChild(close);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'ingenia-modal-body';
+    body.innerText = text;
+
+    // Footer
+    const footer = document.createElement('div');
+    footer.className = 'ingenia-modal-footer';
+
+    if (actions.length === 0) actions.push({ label: 'Cerrar' });
+
+    actions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.className = act.primary ? 'ingenia-primary-btn' : 'ingenia-secondary-btn';
+        btn.textContent = act.label;
+        btn.onclick = () => {
+            if (act.onClick) act.onClick();
+            overlay.remove();
+        };
+        footer.appendChild(btn);
+    });
+
+    modal.append(header, body, footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
 }
