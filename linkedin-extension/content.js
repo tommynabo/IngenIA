@@ -1,230 +1,168 @@
-// IngenIA v7 - FINAL FIXED VERSION
+// IngenIA v8 - Back to working version with fixes
 (function () {
-    console.log('[IngenIA] v7 - Final');
+    console.log('[IngenIA] v8 - Simple Working');
 
-    setInterval(scan, 1500);
-    setTimeout(scan, 800);
+    const done = new Set();
+
+    setInterval(scan, 2000);
+    setTimeout(scan, 500);
 
     function scan() {
-        addPostButtons();
-        addPencilToComments();
-    }
-
-    // === POST BUTTONS ===
-    function addPostButtons() {
-        // Find the social counts line (likes + comments count)
-        // This is the line with "X personas" and "X comentarios"
-        document.querySelectorAll('[class*="social-details-social-counts"], [class*="social-counts"]').forEach(countsEl => {
-            // Check if already processed
-            if (countsEl.getAttribute('data-ing-done')) return;
-            countsEl.setAttribute('data-ing-done', '1');
-
-            // Find parent post
-            const post = countsEl.closest('article, .feed-shared-update-v2, [data-urn]');
-            if (!post) return;
-
-            // Create buttons
-            const btns = document.createElement('span');
-            btns.className = 'ing-post-btns';
-            btns.style.cssText = 'display:inline-flex;gap:8px;margin-left:16px;vertical-align:middle;';
-            btns.innerHTML = `
-                <button class="ing-btn" data-act="summarize" style="background:#0a66c2;color:#fff;border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">📝 Resumir</button>
-                <button class="ing-btn" data-act="comment" style="background:#0a66c2;color:#fff;border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;">⚡ Comentar</button>
-            `;
-
-            btns.querySelectorAll('.ing-btn').forEach(b => {
-                b.onclick = e => {
-                    e.stopPropagation();
-                    handlePost(post, b.getAttribute('data-act'), b);
-                };
-            });
-
-            countsEl.appendChild(btns);
+        // POST BUTTONS - broad search for action bars
+        document.querySelectorAll('button, span').forEach(el => {
+            const t = el.innerText?.toLowerCase().trim();
+            if ((t === 'recomendar' || t === 'like') && !done.has(el)) {
+                done.add(el);
+                const bar = el.closest('[class*="social-action"]') || el.parentElement?.parentElement;
+                if (bar && !bar.querySelector('.ing-btn')) {
+                    const post = bar.closest('[data-urn], .feed-shared-update-v2, article');
+                    const c = document.createElement('div');
+                    c.style.cssText = 'display:inline-flex;gap:8px;margin-left:12px;align-items:center;';
+                    c.innerHTML = `<button class="ing-btn" data-action="summarize">📝 Resumir</button><button class="ing-btn" data-action="comment">⚡ Comentar</button>`;
+                    c.querySelectorAll('.ing-btn').forEach(b => {
+                        b.style.cssText = 'background:#0a66c2;color:#fff;border:none;border-radius:16px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;transition:background 0.2s;';
+                        b.onmouseenter = () => b.style.background = '#004182';
+                        b.onmouseleave = () => b.style.background = '#0a66c2';
+                        b.onclick = (e) => { e.stopPropagation(); doAction(post, b.dataset.action, b); };
+                    });
+                    bar.appendChild(c);
+                }
+            }
         });
-    }
 
-    // === ONE PENCIL PER COMMENT ===
-    function addPencilToComments() {
-        // Process each comment container ONCE
-        document.querySelectorAll('.comments-comment-item, .comments-comment-entity, [class*="comments-comment-item"]').forEach(comment => {
-            // Skip if already processed
-            if (comment.getAttribute('data-ing-pencil')) return;
-            comment.setAttribute('data-ing-pencil', '1');
+        // PENCIL - only ONE per comment container
+        document.querySelectorAll('.comments-comment-item, .comments-comment-entity, [class*="comments-comment-item"]').forEach(commentContainer => {
+            // Skip if we already added pencil to this container
+            if (commentContainer.dataset.ingPencilAdded) return;
 
-            // Find the "Responder" button inside this specific comment
-            let respBtn = null;
-            comment.querySelectorAll('button, span').forEach(el => {
+            // Find responder button in this container
+            let responderBtn = null;
+            commentContainer.querySelectorAll('button, span').forEach(el => {
                 const t = el.innerText?.trim().toLowerCase();
-                if (t === 'responder' || t === 'reply') {
-                    respBtn = el;
+                if ((t === 'responder' || t === 'reply') && !responderBtn) {
+                    responderBtn = el;
                 }
             });
 
-            if (!respBtn) return;
+            if (!responderBtn) return;
 
-            // Create ONE pencil
-            const pencil = document.createElement('span');
-            pencil.className = 'ing-pencil';
-            pencil.innerHTML = '✏️';
-            pencil.title = 'Responder con IA';
-            pencil.style.cssText = 'cursor:pointer;margin-left:6px;font-size:15px;vertical-align:middle;';
-            pencil.onclick = e => {
+            // Mark this container as processed
+            commentContainer.dataset.ingPencilAdded = 'true';
+
+            const p = document.createElement('span');
+            p.className = 'ing-pencil';
+            p.innerHTML = '✏️';
+            p.style.cssText = 'cursor:pointer;margin-left:8px;font-size:16px;';
+            p.onclick = (e) => {
                 e.stopPropagation();
-                handleComment(comment, pencil, respBtn);
+                const txt = commentContainer.querySelector('[class*="main-content"],[class*="comment-text"]')?.innerText || '';
+                if (!txt) { alert('No encontré texto'); return; }
+                doReply(txt, p, responderBtn, commentContainer);
             };
-
-            respBtn.after(pencil);
+            responderBtn.after(p);
         });
     }
 
-    // === HANDLE POST ACTION ===
-    async function handlePost(post, action, btn) {
-        const key = (await chrome.storage.sync.get('licenseKey')).licenseKey;
-        if (!key) { alert('Configura tu licencia en la extensión'); return; }
-
-        // Find post text - try multiple selectors
-        let txt = '';
-        const textSelectors = [
-            '.feed-shared-update-v2__description',
-            '.update-components-text',
-            '.feed-shared-text-view',
-            '[data-ad-preview="message"]',
-            '.feed-shared-text'
-        ];
-        for (const sel of textSelectors) {
-            const el = post.querySelector(sel);
-            if (el?.innerText?.trim()) {
-                txt = el.innerText.trim();
-                break;
-            }
-        }
-
-        if (!txt) {
-            // Fallback: get any text content from post
-            txt = post.innerText?.substring(0, 800) || '';
-        }
-
-        if (!txt || txt.length < 10) {
-            alert('No encontré el texto del post');
+    async function doAction(post, action, btn) {
+        // Check if chrome.storage is available
+        if (!chrome?.storage?.sync) {
+            alert('Error: La extensión no está cargada correctamente. Recarga la página.');
             return;
         }
 
-        const orig = btn.innerHTML;
+        const key = (await chrome.storage.sync.get('licenseKey')).licenseKey;
+        if (!key) { alert('Configura tu licencia'); return; }
+
+        const txt = post?.querySelector('.update-components-text,.feed-shared-text-view,.feed-shared-update-v2__description')?.innerText || post?.innerText?.substring(0, 500) || '';
+        if (!txt) { alert('No encontré texto'); return; }
+
+        const originalText = btn.innerHTML;
         btn.innerHTML = '⏳';
-        btn.disabled = true;
-
-        const prompt = action === 'summarize'
-            ? `Resume este post de LinkedIn de forma breve y clara:\n\n${txt}`
-            : `Escribe un comentario profesional y relevante para este post de LinkedIn:\n\n${txt}`;
+        const prompt = action === 'summarize' ? `Resume: ${txt}` : `Comenta profesionalmente: ${txt}`;
 
         chrome.runtime.sendMessage({ action: 'generate_comment', licenseKey: key, prompt }, r => {
-            btn.innerHTML = orig;
-            btn.disabled = false;
-            if (r?.success) showModal(r.result, post, null);
-            else alert(r?.error || 'Error al generar');
+            btn.innerHTML = originalText;
+            if (r?.success) modal(r.result, true, null, post);
+            else alert(r?.error || 'Error');
         });
     }
 
-    // === HANDLE COMMENT REPLY ===
-    async function handleComment(comment, pencil, respBtn) {
-        const key = (await chrome.storage.sync.get('licenseKey')).licenseKey;
-        if (!key) { alert('Configura tu licencia en la extensión'); return; }
-
-        // Find comment text - try multiple selectors
-        let txt = '';
-        const textSelectors = [
-            '.comments-comment-item__main-content',
-            '[class*="comment-item__main-content"]',
-            '.update-components-text',
-            '[class*="comment-text"]'
-        ];
-        for (const sel of textSelectors) {
-            const el = comment.querySelector(sel);
-            if (el?.innerText?.trim()) {
-                txt = el.innerText.trim();
-                break;
-            }
-        }
-
-        if (!txt || txt.length < 3) {
-            alert('No encontré el texto del comentario');
+    async function doReply(txt, btn, respBtn, commentContainer) {
+        // Check if chrome.storage is available
+        if (!chrome?.storage?.sync) {
+            alert('Error: La extensión no está cargada correctamente. Recarga la página.');
             return;
         }
 
-        const orig = pencil.innerHTML;
-        pencil.innerHTML = '⏳';
+        const key = (await chrome.storage.sync.get('licenseKey')).licenseKey;
+        if (!key) { alert('Configura tu licencia'); return; }
 
-        const prompt = `Escribe una respuesta cordial y profesional a este comentario de LinkedIn:\n\n"${txt}"`;
+        btn.innerHTML = '⏳';
+        const prompt = `Responde cordialmente a: "${txt}"`;
 
         chrome.runtime.sendMessage({ action: 'generate_comment', licenseKey: key, prompt }, r => {
-            pencil.innerHTML = orig;
-            if (r?.success) showModal(r.result, comment, respBtn);
-            else alert(r?.error || 'Error al generar');
+            btn.innerHTML = '✏️';
+            if (r?.success) modal(r.result, true, respBtn, commentContainer);
+            else alert(r?.error || 'Error');
         });
     }
 
-    // === MODAL ===
-    function showModal(text, container, respBtn) {
-        const overlay = document.createElement('div');
-        overlay.id = 'ing-modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999999;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = `
-            <div style="background:#fff;padding:24px;border-radius:12px;max-width:520px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,.25);">
-                <h3 style="margin:0 0 14px;font-size:17px;color:#333;">Resultado IngenIA</h3>
-                <div style="background:#f4f4f4;padding:14px;border-radius:8px;font-size:14px;line-height:1.5;max-height:280px;overflow:auto;margin-bottom:18px;white-space:pre-wrap;">${text}</div>
+    function modal(text, showInsert, respBtn, container) {
+        const o = document.createElement('div');
+        o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999999;display:flex;align-items:center;justify-content:center;';
+        o.innerHTML = `
+            <div style="background:#fff;padding:24px;border-radius:12px;max-width:550px;width:90%;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                <h3 style="margin:0 0 16px;color:#333;">Resultado IngenIA</h3>
+                <div style="background:#f5f5f5;padding:14px;border-radius:8px;font-size:15px;line-height:1.6;max-height:300px;overflow:auto;margin-bottom:20px;">${text}</div>
                 <div style="display:flex;gap:10px;justify-content:flex-end;">
-                    <button id="ing-insert" style="background:#0a66c2;color:#fff;border:none;padding:9px 18px;border-radius:18px;cursor:pointer;font-weight:600;">📥 Insertar</button>
-                    <button id="ing-copy" style="background:#fff;color:#0a66c2;border:2px solid #0a66c2;padding:9px 18px;border-radius:18px;cursor:pointer;font-weight:600;">📋 Copiar</button>
-                    <button id="ing-close" style="background:#eee;color:#333;border:none;padding:9px 18px;border-radius:18px;cursor:pointer;font-weight:600;">Cerrar</button>
+                    ${showInsert ? '<button id="ing-insert" style="background:#0a66c2;color:#fff;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-weight:600;">📥 Insertar</button>' : ''}
+                    <button id="ing-copy" style="background:#fff;color:#0a66c2;border:1px solid #0a66c2;padding:8px 16px;border-radius:16px;cursor:pointer;font-weight:600;">📋 Copiar</button>
+                    <button id="ing-close" style="background:transparent;color:#666;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-weight:600;">Cerrar</button>
                 </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
+            </div>`;
+        document.body.appendChild(o);
 
-        overlay.querySelector('#ing-close').onclick = () => overlay.remove();
-
-        overlay.querySelector('#ing-copy').onclick = () => {
+        o.querySelector('#ing-close').onclick = () => o.remove();
+        o.querySelector('#ing-copy').onclick = () => {
             navigator.clipboard.writeText(text);
-            overlay.querySelector('#ing-copy').textContent = '✓ Copiado';
+            const copyBtn = o.querySelector('#ing-copy');
+            copyBtn.textContent = '✓ Copiado';
+            setTimeout(() => copyBtn.textContent = '📋 Copiar', 2000);
         };
 
-        overlay.querySelector('#ing-insert').onclick = () => {
-            // Click responder button if this is a reply
-            if (respBtn) respBtn.click();
+        const ins = o.querySelector('#ing-insert');
+        if (ins) {
+            ins.onclick = () => {
+                if (respBtn) respBtn.click();
 
-            setTimeout(() => {
-                let editor = null;
-
-                // Try to find the editor
-                if (respBtn && container) {
-                    // For replies, look near the comment
-                    editor = container.querySelector('.ql-editor[contenteditable="true"]');
-                    if (!editor) {
-                        editor = container.parentElement?.querySelector('.ql-editor[contenteditable="true"]');
+                setTimeout(() => {
+                    let ed;
+                    if (respBtn && container) {
+                        ed = container.parentElement?.querySelector('.ql-editor[contenteditable="true"]') ||
+                            container.querySelector('.ql-editor[contenteditable="true"]');
+                    } else if (container) {
+                        ed = container.querySelector('.ql-editor[contenteditable="true"]');
                     }
-                }
 
-                // Fallback: get the last editor on the page
-                if (!editor) {
-                    const allEditors = document.querySelectorAll('.ql-editor[contenteditable="true"]');
-                    if (allEditors.length > 0) {
-                        editor = allEditors[allEditors.length - 1];
+                    if (!ed) {
+                        const editors = document.querySelectorAll('.ql-editor[contenteditable="true"]');
+                        ed = editors[editors.length - 1];
                     }
-                }
 
-                if (editor) {
-                    editor.innerHTML = `<p>${text}</p>`;
-                    editor.focus();
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
-                } else {
-                    navigator.clipboard.writeText(text);
-                    alert('Texto copiado (no se pudo insertar automáticamente)');
-                }
+                    if (ed) {
+                        ed.innerHTML = `<p>${text}</p>`;
+                        ed.focus();
+                        ed.dispatchEvent(new Event('input', { bubbles: true }));
+                        ed.dispatchEvent(new Event('focus', { bubbles: true }));
+                    } else {
+                        navigator.clipboard.writeText(text);
+                        alert('Texto copiado al portapapeles (no pude encontrar la caja de texto automática).');
+                    }
+                    o.remove();
+                }, 600);
+            };
+        }
 
-                overlay.remove();
-            }, 700);
-        };
-
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+        o.onclick = (e) => { if (e.target === o) o.remove(); };
     }
 })();
