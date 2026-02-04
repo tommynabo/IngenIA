@@ -16,7 +16,7 @@ export const VSLVideo: React.FC<VSLVideoProps> = ({ className = "" }) => {
             {/* Container for the video */}
             <div className="relative z-10 rounded-3xl overflow-hidden bg-black aspect-video border border-white/10 shadow-2xl">
                 <iframe
-                    src="https://drive.google.com/file/d/1itWO19wFT7-57RX9ohYhD72gVoO3xrAx/preview"
+                    src="https://drive.google.com/file/d/1LIGoVGBxjiWWqOPoEoM0JXIX7zlE_V65/preview"
                     width="100%"
                     height="100%"
                     allow="autoplay; fullscreen"
