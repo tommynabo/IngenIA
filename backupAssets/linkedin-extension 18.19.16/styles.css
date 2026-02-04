@@ -1,0 +1,252 @@
+/* ingenia-btn-container-small: Fits in the stats bar */
+.ingenia-btn-container-small {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+    /* Push to right if in flex container */
+    padding: 0 8px;
+    align-items: center;
+}
+
+/* Filled, small button style */
+.ingenia-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background-color: #0a66c2;
+    /* LinkedIn Brand Blue */
+    color: white !important;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s, background-color 0.2s;
+    line-height: 1.2;
+}
+
+/* Hover effect */
+.ingenia-btn:hover {
+    background-color: #004182;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
+}
+
+/* Icon style */
+.ingenia-icon {
+    font-size: 12px;
+    margin-right: 4px;
+}
+
+/* Mini/Icon-only button for replies */
+.ingenia-btn-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: transparent;
+    color: #666;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 4px;
+    padding: 0;
+}
+
+.ingenia-btn-mini:hover {
+    background-color: #f3f3f3;
+    color: #0a66c2;
+    border-color: #0a66c2;
+    transform: scale(1.1);
+}
+
+.ingenia-btn-mini .ingenia-icon {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Loading Spinner (White for filled btn) */
+.ingenia-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: ingenia-spin 0.8s linear infinite;
+}
+
+@keyframes ingenia-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Modal / Popup Styles --- */
+.ingenia-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    animation: ingenia-fade-in 0.2s forwards;
+}
+
+.ingenia-modal {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transform: scale(0.95);
+    animation: ingenia-scale-up 0.2s 0.1s forwards;
+}
+
+@keyframes ingenia-fade-in {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes ingenia-scale-up {
+    to {
+        transform: scale(1);
+    }
+}
+
+.ingenia-modal-header {
+    background: #f8fafc;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ingenia-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.ingenia-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.ingenia-close-btn:hover {
+    color: #0f172a;
+    background: #e2e8f0;
+}
+
+.ingenia-modal-body {
+    padding: 24px;
+    max-height: 60vh;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.ingenia-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #fff;
+}
+
+.ingenia-primary-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.ingenia-primary-btn:hover {
+    background: #2563eb;
+}
+
+.ingenia-secondary-btn {
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.ingenia-secondary-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .ingenia-modal {
+        background: #1e293b;
+        color: #f8fafc;
+    }
+
+    .ingenia-modal-header {
+        background: #0f172a;
+        border-color: #334155;
+    }
+
+    .ingenia-modal-title {
+        color: #f8fafc;
+    }
+
+    .ingenia-modal-body {
+        color: #cbd5e1;
+    }
+
+    .ingenia-modal-footer {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .ingenia-secondary-btn {
+        border-color: #475569;
+        color: #94a3b8;
+    }
+
+    .ingenia-secondary-btn:hover {
+        background: #334155;
+        color: #f8fafc;
+    }
+}
