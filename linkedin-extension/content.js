@@ -395,6 +395,42 @@ function findInputBox() {
 
 // Start
 injectStyles();
-createDashboard();
+
+// URL-based visibility
+function shouldShowPanel() {
+    const url = window.location.href;
+    // Hide on: messaging, notifications, profile, jobs, mynetwork, etc.
+    const hiddenPages = ['/messaging', '/notifications', '/in/', '/jobs', '/mynetwork', '/search'];
+    for (let page of hiddenPages) {
+        if (url.includes(page)) return false;
+    }
+    // Show on feed (home) and individual posts
+    return url.includes('linkedin.com/feed') || url.includes('linkedin.com/posts') || url === 'https://www.linkedin.com/' || url === 'https://linkedin.com/';
+}
+
+function updatePanelVisibility() {
+    const panel = document.getElementById('ingenia-dashboard');
+    if (panel) {
+        panel.style.display = shouldShowPanel() ? 'block' : 'none';
+    }
+}
+
+// Create dashboard only if needed
+if (shouldShowPanel()) {
+    createDashboard();
+}
 initClickMemory();
+
+// Monitor URL changes (LinkedIn is SPA)
+let lastUrl = window.location.href;
+setInterval(() => {
+    if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        if (shouldShowPanel()) {
+            createDashboard();
+        }
+        updatePanelVisibility();
+    }
+}, 500);
+
 console.log("IngenIA: Ready with Comment Reply Support! 🚀");
