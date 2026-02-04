@@ -39,6 +39,7 @@ function scanAndInject() {
 }
 
 // --- Logic for Posts (Summarize / Comment) ---
+// --- Logic for Posts (Summarize / Comment) ---
 function injectPostButtons() {
     const posts = document.querySelectorAll(POST_SELECTOR);
 
@@ -48,14 +49,19 @@ function injectPostButtons() {
         // STRATEGY 1: Social Counts Bar (Best for Single Post / High Engagement)
         const countsBar = post.querySelector(DETAILS_SELECTOR);
 
-        if (countsBar) {
+        // CRITICAL CHECK: In the feed, this bar might exist but be hidden (display: none).
+        // If it's hidden, appending to it is useless. We must fall back.
+        // offsetParent is null if element or ancestors are display: none.
+        const isCountsBarVisible = countsBar && countsBar.offsetParent !== null;
+
+        if (isCountsBarVisible) {
             injectButtons(countsBar, post, false); // false = not specific row
             post.setAttribute(INJECTED_ATTR, 'true');
             return;
         }
 
         // STRATEGY 2: Fallback for Feedback (Dedicated Row)
-        // If we can't find the counts bar, we create our own row at the bottom.
+        // If we can't find the counts bar OR IT IS HIDDEN, we create our own row at the bottom.
         // We look for the action bar just to know WHERE to insert (after it).
         const actionBar = post.querySelector(ACTION_BAR_SELECTOR);
 
@@ -66,8 +72,6 @@ function injectPostButtons() {
 
             // Insert AFTER the action bar
             if (actionBar.parentNode) {
-                // actionBar.parentNode.insertBefore(feedRow, actionBar.nextSibling); 
-                // Using insertBefore nextSibling is safer than append if there are other footer items
                 actionBar.insertAdjacentElement('afterend', feedRow);
 
                 injectButtons(feedRow, post, true); // true = is dedicated row
