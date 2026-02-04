@@ -141,89 +141,111 @@ function createDashboard() {
 
 function initDetectors() {
     // A. CLICK DETECTOR (Aggressive)
-    // Any click anywhere inside a post sets it as the active target.
+    // Listens for ANY click. If it's inside a post, select it.
     document.addEventListener('click', (e) => {
         const target = e.target;
 
-        // Find closest post wrapper
-        const post = target.closest('.feed-shared-update-v2, div[data-urn], .occludable-update');
+        // Robust strategy: Find any ancestor with 'data-urn' (standard LinkedIn post ID)
+        // or the class 'feed-shared-update-v2'
+        const post = target.closest('div[data-urn]') ||
+            target.closest('.feed-shared-update-v2') ||
+            target.closest('.occludable-update');
 
         if (post) {
-            // If the user clicked inside a post, MAKE IT ACTIVE IMMEDIATELY
-            console.log("IngenIA clicked post:", post);
+            console.log("IngenIA: Click interaction detected on post", post);
             updateDashboardTarget(post, true);
         }
-    }, true); // Capture phase to ensure we catch it
+    }, true); // Capture phase
 
     // B. SCROLL DETECTOR (Passive background update)
-    // Only updates if we don't have a "freshly clicked" post, or simply follows user gaze
     const scrollCheck = () => {
-        const posts = document.querySelectorAll('.feed-shared-update-v2, div[data-urn], .occludable-update');
-        const viewportCenter = window.innerHeight / 2;
-        let closest = null;
-        let minDist = Infinity;
-
-        posts.forEach(post => {
-            const r = post.getBoundingClientRect();
-            if (r.top < viewportCenter && r.bottom > viewportCenter) {
-                const dist = Math.abs((r.top + r.height / 2) - viewportCenter);
-                if (dist < minDist) {
-                    minDist = dist;
-                    closest = post;
-                }
+        // Only update if we don't have a confirmed "Click Selection"
+        // OR if the user has scrolled significantly away from the selected post
+        if (currentPost) {
+            const rect = currentPost.getBoundingClientRect();
+            // If active post is off-screen, auto-release hash to allow visual scanner
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                // optionally clear selection or let the code below pick a new one
             }
-        });
-
-        if (closest && closest !== currentPost) {
-            updateDashboardTarget(closest, false);
         }
+
+        // Optional: Continuous scanning could be added here if desired, 
+        // but User prefers "Click to Select" or "Auto-use on Action".
     };
 
-    window.addEventListener('scroll', scrollCheck, { passive: true });
-    setInterval(scrollCheck, 1500); // Polling for robust detection
+    // We remove the aggressive scroll interval to avoid "jumping" selection
+    // while the user is reading a specific post.
+    // window.addEventListener('scroll', scrollCheck, { passive: true });
 }
 
-
 function updateDashboardTarget(post, isClick) {
-    // Remove highlight from old post
     if (currentPost && currentPost !== post) {
         currentPost.classList.remove('ingenia-active-post');
+        // Clean up old border immediately
+        currentPost.style.border = '';
+        currentPost.style.boxShadow = '';
     }
 
     currentPost = post;
 
-    // Add Highlight (Blue Border)
+    // Force Visual Feedback
     post.classList.add('ingenia-active-post');
+    post.style.border = '2px solid #0a66c2'; // Force inline to be sure
+    post.style.borderRadius = '8px';
+    post.style.boxShadow = '0 0 10px rgba(10,102,194,0.2)';
 
     // Update Text
-    const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name');
-    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Post detectado";
+    const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title');
+    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Post";
 
     const targetText = document.getElementById('ingenia-target-text');
     const dot = document.getElementById('ingenia-status-dot');
 
     if (targetText && dot) {
-        const prefix = isClick ? "Seleccionado: " : "Detectado: ";
-        targetText.innerText = prefix + authorName;
+        targetText.innerText = "Seleccionado: " + authorName;
         dot.classList.add('active');
+        dot.style.background = '#4ade80';
     }
 }
 
 // 5. ACTION LOGIC
 async function runAction(type) {
-    if (!currentPost) {
-        alert("¡Selecciona un post primero!");
-        return;
-    }
-
     const btn = document.getElementById(type === 'summarize' ? 'btn-summarize' : 'btn-comment');
     const originalText = btn.innerHTML;
+
+    // --- JUST IN TIME SELECTION ---
+    // If no post is selected, find the one mostly visible on screen RIGHT NOW.
+    if (!currentPost) {
+        console.log("IngenIA: No post selected. Searching visible post...");
+        const posts = document.querySelectorAll('div[data-urn], .feed-shared-update-v2');
+        const viewportCenter = window.innerHeight / 2;
+        let bestCandidate = null;
+        let minDist = Infinity;
+
+        posts.forEach(p => {
+            const r = p.getBoundingClientRect();
+            if (r.top < window.innerHeight && r.bottom > 0) {
+                const dist = Math.abs((r.top + r.height / 2) - viewportCenter);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestCandidate = p;
+                }
+            }
+        });
+
+        if (bestCandidate) {
+            updateDashboardTarget(bestCandidate, false);
+        } else {
+            alert("⚠️ No encuentro ningún post en pantalla. Haz clic en uno.");
+            return;
+        }
+    }
+    // -----------------------------
+
     btn.innerHTML = '⏳';
     btn.disabled = true;
 
     // Extract Text (and expand if needed)
-    // If "See more" exists and wasn't clicked, we might miss text. 
-    // Best effort: grab hidden text too if present in DOM.
     const textEl = currentPost.querySelector('.feed-shared-update-v2__description, .update-components-text') || currentPost;
     const text = textEl.innerText;
 
