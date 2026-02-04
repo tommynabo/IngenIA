@@ -28,15 +28,8 @@ observer.observe(OBSERVER_TARGET, { childList: true, subtree: true });
 
 // Initial scan
 scanAndInject();
-// Run regularly to handle infinite scroll
-setInterval(scanAndInject, 1000);
-
-// DEBUG: Force indicator so user knows it loaded
-const dbg = document.createElement('div');
-dbg.innerHTML = "🔴 IngenIA: LOADED";
-dbg.style.cssText = "position:fixed; bottom:0; left:0; background:red; color:white; padding:5px; z-index:999999; font-weight:bold; font-size:12px;";
-document.body.appendChild(dbg);
-setTimeout(() => dbg.remove(), 5000); // Remove after 5s
+// Run regularly to handle infinite scroll (Standard feed behavior)
+setInterval(scanAndInject, 1500);
 
 function scanAndInject() {
     // Buttons for Posts
@@ -51,21 +44,18 @@ function injectPostButtons() {
     const posts = document.querySelectorAll(POST_SELECTOR);
 
     posts.forEach(post => {
+        // Prevent double injection
         if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
         // TARGET FINDING STRATEGY
-        // 1. Look for the "likes/comments" count strip
+        // Priority 1: The "Counts" bar (e.g. "25 likes • 4 comments")
+        // This is preferred as it keeps the action bar clean.
         let target = post.querySelector(DETAILS_SELECTOR);
 
-        // 2. If missing, look for the action bar (Like, Comment, Share, Send)
+        // Priority 2: The "Action" bar (Like, Comment, Share, Send)
+        // This is CRITICAL for the main feed, as many posts don't have the counts bar yet.
         if (!target) {
             target = post.querySelector(ACTION_BAR_SELECTOR);
-        }
-
-        // 3. Last Resort: Any flex container with 'social' in class name at bottom
-        if (!target) {
-            const potential = Array.from(post.querySelectorAll('div[class*="social"]'));
-            target = potential.find(el => (el.innerText && (el.innerText.includes('Like') || el.innerText.includes('Recomendar'))) || el.children.length > 2);
         }
 
         if (target) {
