@@ -40,27 +40,25 @@ function scanAndInject() {
 
 // --- Logic for Posts (Summarize / Comment) ---
 function injectPostButtons() {
-    // Broaden selector to catch any feed update
     const posts = document.querySelectorAll(POST_SELECTOR);
 
     posts.forEach(post => {
-        // Prevent double injection
         if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
         // TARGET FINDING STRATEGY
-        // Priority 1: The "Counts" bar (e.g. "25 likes • 4 comments")
-        // This is preferred as it keeps the action bar clean.
+        // Priority 1: "Counts" bar (Best for single post)
         let target = post.querySelector(DETAILS_SELECTOR);
+        let placement = 'append';
 
-        // Priority 2: The "Action" bar (Like, Comment, Share, Send)
-        // This is CRITICAL for the main feed, as many posts don't have the counts bar yet.
+        // Priority 2: "Action" bar (Critical for Feed)
+        // Many feed posts lack the counts bar. We inject into the action bar.
         if (!target) {
             target = post.querySelector(ACTION_BAR_SELECTOR);
+            // If injecting into action bar, we want it to look integrated
         }
 
         if (target) {
             injectButtons(target, post);
-            // Mark processed
             post.setAttribute(INJECTED_ATTR, 'true');
         }
     });
@@ -134,11 +132,9 @@ function injectReplyButtonDirectly(referenceBtn, commentContext) {
 function injectButtons(container, postElement) {
     const btnContainer = document.createElement('div');
     btnContainer.className = 'ingenia-btn-container-small';
-    // Style directly to ensure visibility
-    btnContainer.style.display = 'inline-flex';
-    btnContainer.style.gap = '6px';
-    btnContainer.style.marginLeft = 'auto'; // push to right
-    btnContainer.style.alignItems = 'center';
+
+    // Style: Inline flex to sit nicely in the bar
+    btnContainer.style.cssText = 'display: inline-flex; gap: 6px; margin-left: auto; align-items: center; order: 999;';
 
     // Summarize
     const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));
@@ -312,7 +308,7 @@ function showModal(title, content, btns) {
             <h3>${title}</h3>
             <button onclick="this.closest('.ingenia-overlay').remove()">×</button>
         </div>
-        <div class="body">${content}</div>
+        <div class="body">${formatContent(content)}</div>
         <div class="footer" id="modal-footer"></div>
     </div>`;
 
@@ -320,10 +316,27 @@ function showModal(title, content, btns) {
     btns.forEach(b => {
         const btn = document.createElement('button');
         btn.innerText = b.label;
-        btn.onclick = () => { b.onClick(); ol.remove(); };
-        btn.style.cssText = b.primary ? 'background:#0a66c2;color:white;border:none;padding:5px 10px;border-radius:4px;margin-left:5px;' : 'background:#eee;border:none;padding:5px 10px;border-radius:4px;margin-left:5px;';
+        btn.onclick = () => { if (b.onClick) b.onClick(); ol.remove(); };
+
+        // Premium Button Styling (Inline to ensure it overrides)
+        if (b.primary) {
+            btn.style.cssText = "background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s;";
+            btn.onmouseover = () => btn.style.background = "#2563eb";
+            btn.onmouseout = () => btn.style.background = "#3b82f6";
+        } else {
+            btn.style.cssText = "background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;";
+            btn.onmouseover = () => { btn.style.background = "#334155"; btn.style.color = "white"; };
+            btn.onmouseout = () => { btn.style.background = "transparent"; btn.style.color = "#94a3b8"; };
+        }
+
         ft.appendChild(btn);
     });
 
     document.body.appendChild(ol);
+}
+
+// Helper for formatting
+function formatContent(text) {
+    // Simple bolding and paragraph breaks
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 }
