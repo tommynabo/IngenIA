@@ -45,21 +45,34 @@ function injectPostButtons() {
     posts.forEach(post => {
         if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
-        // TARGET FINDING STRATEGY
-        // Priority 1: "Counts" bar (Best for single post)
-        let target = post.querySelector(DETAILS_SELECTOR);
-        let placement = 'append';
+        // STRATEGY 1: Social Counts Bar (Best for Single Post / High Engagement)
+        const countsBar = post.querySelector(DETAILS_SELECTOR);
 
-        // Priority 2: "Action" bar (Critical for Feed)
-        // Many feed posts lack the counts bar. We inject into the action bar.
-        if (!target) {
-            target = post.querySelector(ACTION_BAR_SELECTOR);
-            // If injecting into action bar, we want it to look integrated
+        if (countsBar) {
+            injectButtons(countsBar, post, false); // false = not specific row
+            post.setAttribute(INJECTED_ATTR, 'true');
+            return;
         }
 
-        if (target) {
-            injectButtons(target, post);
-            post.setAttribute(INJECTED_ATTR, 'true');
+        // STRATEGY 2: Fallback for Feedback (Dedicated Row)
+        // If we can't find the counts bar, we create our own row at the bottom.
+        // We look for the action bar just to know WHERE to insert (after it).
+        const actionBar = post.querySelector(ACTION_BAR_SELECTOR);
+
+        if (actionBar) {
+            // Create a dedicated footer row
+            const feedRow = document.createElement('div');
+            feedRow.className = 'ingenia-feed-row';
+
+            // Insert AFTER the action bar
+            if (actionBar.parentNode) {
+                // actionBar.parentNode.insertBefore(feedRow, actionBar.nextSibling); 
+                // Using insertBefore nextSibling is safer than append if there are other footer items
+                actionBar.insertAdjacentElement('afterend', feedRow);
+
+                injectButtons(feedRow, post, true); // true = is dedicated row
+                post.setAttribute(INJECTED_ATTR, 'true');
+            }
         }
     });
 }

@@ -1,4 +1,30 @@
-/* --- Button Styles --- */
+/* ... (Previous styles) ... */
+
+/* New Dedicated Feed Row */
+.ingenia-feed-row {
+    width: 100%;
+    padding: 8px 16px;
+    display: flex;
+    justify-content: flex-end;
+    /* Align to right */
+    gap: 8px;
+    border-top: 1px solid #e0e0e0;
+    /* Separator line */
+    background-color: #f9fafb;
+    /* Slight tint to distinguish */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    margin-top: 4px;
+}
+
+/* Ensure buttons in this row look good */
+.ingenia-feed-row .ingenia-btn {
+    box-shadow: none;
+    /* Flatter look for the row */
+}
+
+/* ... (Modal styles) ... */
+
 
 /* Standard Filled Blue Button (Summarize / Comment) */
 .ingenia-btn {
