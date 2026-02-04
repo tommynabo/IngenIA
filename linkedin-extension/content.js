@@ -142,21 +142,34 @@ function injectReplyButtonDirectly(referenceBtn, commentContext) {
     referenceBtn.insertAdjacentElement('afterend', iaBtn);
 }
 
-function injectButtons(container, postElement) {
-    const btnContainer = document.createElement('div');
-    btnContainer.className = 'ingenia-btn-container-small';
+function injectButtons(container, postElement, isRow) {
+    let target = container;
 
-    // Style: Inline flex to sit nicely in the bar
-    btnContainer.style.cssText = 'display: inline-flex; gap: 6px; margin-left: auto; align-items: center; order: 999;';
+    // If it's NOT a dedicated row (i.e. it's the specific counts bar),
+    // we wrap buttons to keep them tidy.
+    // If it IS a dedicated row, the container is the row, so we append directly.
+    if (!isRow) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ingenia-btn-container-small';
+
+        // Push to right side of the flex container
+        wrapper.style.marginLeft = 'auto';
+        wrapper.style.display = 'inline-flex';
+        wrapper.style.gap = '6px';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.order = '999';
+
+        container.appendChild(wrapper);
+        target = wrapper;
+    }
 
     // Summarize
     const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));
     // Comment
     const btnComment = createButton('⚡️', 'Comentar', () => handleAction(postElement, 'comment', btnComment));
 
-    btnContainer.appendChild(btnSum);
-    btnContainer.appendChild(btnComment);
-    container.appendChild(btnContainer);
+    target.appendChild(btnSum);
+    target.appendChild(btnComment);
 }
 
 function createButton(icon, text, onClick) {
