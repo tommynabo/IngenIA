@@ -1,9 +1,7 @@
 // --- Constants ---
 const OBSERVER_TARGET = document.body;
-// Wrapper typically used by LinkedIn feed updates
+// Broad selectors to catch any post type
 const POST_SELECTOR = '.feed-shared-update-v2, div[data-urn], .occludable-update';
-// New target: The bar with "100 likes - 20 comments"
-const DETAILS_SELECTOR = '.social-details-social-counts, .feed-shared-social-counts, .social-details-social-activity';
 // Text selectors
 const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view, .feed-shared-inline-show-more-text';
 const AUTHOR_SELECTOR = '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title';
@@ -14,7 +12,7 @@ const COMMENT_TEXT_SELECTOR = '.comments-comment-item__main-content, .feed-share
 
 // --- State ---
 const INJECTED_ATTR = 'data-ingenia-injected';
-const DEBUG_LOG = true; // Enable logging
+const DEBUG_LOG = true;
 
 function log(msg) {
     if (DEBUG_LOG) console.log("IngenIA: " + msg);
@@ -27,8 +25,8 @@ const observer = new MutationObserver((mutations) => {
 observer.observe(OBSERVER_TARGET, { childList: true, subtree: true });
 
 // Initial scan
-scanAndInject();
-setInterval(scanAndInject, 1500);
+setTimeout(scanAndInject, 1000); // Wait a bit for React to settle
+setInterval(scanAndInject, 2000);
 
 function scanAndInject() {
     try {
@@ -39,136 +37,144 @@ function scanAndInject() {
     }
 }
 
-// --- Logic for Posts (Summarize / Comment) ---
+// --- MAIN LOGIC: FEED POSTS ---
 function injectPostButtons() {
     const posts = document.querySelectorAll(POST_SELECTOR);
 
     posts.forEach(post => {
         if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
-        // STRATEGY 1: Social Counts Bar (Visible only)
-        const countsBar = post.querySelector(DETAILS_SELECTOR);
-        const isCountsBarVisible = countsBar && countsBar.offsetParent !== null;
+        // VISUAL DEBUG: Check if we are finding posts
+        // post.style.border = "1px solid red";
 
-        if (isCountsBarVisible) {
-            log("Injecting into Counts Bar");
-            injectButtons(countsBar, post, false);
-            post.setAttribute(INJECTED_ATTR, 'true');
-            return;
-        }
+        // Find the Action Bar (Like, Comment, Share buttons)
+        const actionBar = findActionBar(post);
 
-        // STRATEGY 2: Fallback (Dedicated Row at Bottom)
-        // We no longer try to find the perfect "Action Bar". 
-        // We just verify this IS a post with actions, then append to the bottom.
-        let hasActions = findActionBarDynamically(post);
+        if (actionBar) {
+            log("Found Action Bar. Creating Footer...");
 
-        if (hasActions) {
-            log("Appending dedicated row to bottom of post");
+            // Create our dedicated row
+            const footerRow = document.createElement('div');
+            footerRow.className = 'ingenia-feed-row';
 
-            // Create a dedicated footer row
-            const feedRow = document.createElement('div');
-            feedRow.className = 'ingenia-feed-row';
+            // FORCE VISIBILITY STYLES (Inline to override anything)
+            footerRow.style.cssText = `
+                display: flex !important;
+                justify-content: flex-end !important;
+                align-items: center !important;
+                width: 100% !important;
+                padding: 8px 12px !important;
+                background-color: #f3f6f8 !important; 
+                border-top: 1px solid #e0e0e0 !important;
+                margin-top: 0px !important;
+                box-sizing: border-box !important;
+                z-index: 1000 !important;
+                min-height: 44px !important;
+            `;
 
-            // Append to the VERY END of the post container. 
-            // This is safer than inserting in the middle of React-managed lists.
-            post.appendChild(feedRow);
+            // Inject logic
+            injectButtons(footerRow, post);
 
-            injectButtons(feedRow, post, true);
-            post.setAttribute(INJECTED_ATTR, 'true');
+            // INSERTION: Insert AFTER the action bar
+            // We use parentNode.insertBefore(newNode, referenceNode.nextSibling)
+            if (actionBar.parentNode) {
+                actionBar.parentNode.insertBefore(footerRow, actionBar.nextSibling);
+                post.setAttribute(INJECTED_ATTR, 'true');
+            }
+        } else {
+            log("No Action Bar found for this post.");
         }
     });
 }
 
-function findActionBarDynamically(post) {
-    // 1. Try standard selectors first
-    const std = post.querySelector('.feed-shared-social-action-bar, .social-actions-button-bar');
-    if (std) return std;
+function findActionBar(post) {
+    // 1. Try standard class name (sometimes works)
+    let bar = post.querySelector('.feed-shared-social-action-bar');
+    if (bar) return bar;
 
-    // 2. Search for ANY interactable button that looks like a social action
-    // We check aria-labels too!
+    // 2. Fallback: Find the "Like" or "Recomendar" button and get its parent
     const buttons = post.querySelectorAll('button');
     for (let btn of buttons) {
         const text = (btn.innerText || "").toLowerCase();
         const label = (btn.getAttribute('aria-label') || "").toLowerCase();
 
-        const isSocial =
-            text.includes('like') || text.includes('gusta') || text.includes('recomendar') ||
-            text.includes('comment') || text.includes('comentar') ||
-            label.includes('like') || label.includes('recomendar') || label.includes('comment');
+        if (text.includes('recomendar') || text.includes('like') || text.includes('gusta') ||
+            label.includes('recomendar') || label.includes('like')) {
 
-        if (isSocial) return btn.parentElement;
+            // Usually the button is inside a span/div, which is inside the bar.
+            // Check grand-parent or parent.
+            let candidate = btn.parentElement;
+            // Go up until we find a container that spans widely or has multiple buttons
+            if (candidate && candidate.tagName === 'DIV') return candidate;
+            if (candidate && candidate.parentElement && candidate.parentElement.tagName === 'DIV') return candidate.parentElement;
+
+            return btn.parentElement; // Worst case
+        }
     }
     return null;
 }
 
-// --- Logic for Comments (Reply Pencil) ---
+// --- LOGIC: COMMENT REPLIES ---
 function injectCommentButtons() {
-    // Strategy A: Find specific buttons (Best native feel)
-    const allButtons = document.querySelectorAll('button, .artdeco-button');
+    const allButtons = document.querySelectorAll('button');
     allButtons.forEach(btn => {
         if (btn.dataset.ingeniaHandled) return;
 
-        const rawText = btn.innerText || "";
-        const text = rawText.toLowerCase().trim();
+        const text = (btn.innerText || "").toLowerCase().trim();
         const label = (btn.getAttribute('aria-label') || "").toLowerCase();
-        const spanText = btn.querySelector('.artdeco-button__text') ? btn.querySelector('.artdeco-button__text').innerText.toLowerCase().trim() : "";
 
+        // Find "Reply" or "Responder" buttons
         const isReply = text === 'responder' || text === 'reply' ||
-            spanText === 'responder' || spanText === 'reply' ||
-            label.includes('reply to') || label.includes('responder a') ||
-            label === 'responder' || label === 'reply';
+            label.includes('responder') || label.includes('reply');
 
         if (isReply) {
-            const commentItem = btn.closest(COMMENT_SELECTOR) ||
-                btn.closest('.feed-shared-comment-item') ||
-                btn.closest('article');
-
+            const commentItem = btn.closest(COMMENT_SELECTOR) || btn.closest('article');
             if (commentItem) {
-                injectReplyButtonDirectly(btn, commentItem);
+                const iaBtn = createButton('✏️', '', () => handleAction(commentItem, 'reply', iaBtn));
+                iaBtn.className = 'ingenia-btn-mini';
+                iaBtn.title = "IA Reply";
+                iaBtn.style.marginLeft = "8px";
+
+                btn.insertAdjacentElement('afterend', iaBtn);
                 btn.dataset.ingeniaHandled = 'true';
-                commentItem.setAttribute(INJECTED_ATTR, 'true');
             }
         }
     });
 }
 
-function injectReplyButtonDirectly(referenceBtn, commentContext) {
-    const iaBtn = createButton('✏️', '', () => handleAction(commentContext, 'reply', iaBtn));
-    iaBtn.className = 'ingenia-btn-mini';
-    iaBtn.title = "Generar respuesta con IA";
-    referenceBtn.insertAdjacentElement('afterend', iaBtn);
-}
-
-function injectButtons(container, postElement, isRow) {
-    let target = container;
-
-    // Logic: If NOT a row (e.g. counts bar), wrap it.
-    if (!isRow) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'ingenia-btn-container-small';
-
-        wrapper.style.marginLeft = 'auto';
-        wrapper.style.display = 'inline-flex';
-        wrapper.style.gap = '6px';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.order = '999';
-
-        container.appendChild(wrapper);
-        target = wrapper;
-    }
-
-    // Buttons
+// --- HELPER: Create Buttons ---
+function injectButtons(container, postElement) {
+    // Summarize
     const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));
+    // Comment
     const btnComment = createButton('⚡️', 'Comentar', () => handleAction(postElement, 'comment', btnComment));
 
-    target.appendChild(btnSum);
-    target.appendChild(btnComment);
+    container.appendChild(btnSum);
+    container.appendChild(btnComment);
 }
 
 function createButton(icon, text, onClick) {
     const btn = document.createElement('button');
-    btn.className = 'ingenia-btn';
-    btn.innerHTML = `<span class="ingenia-icon">${icon}</span> <span class="ingenia-text">${text}</span>`;
+    btn.className = 'ingenia-btn'; // keeps class for hover effects
+    btn.innerHTML = `<span style="margin-right:4px">${icon}</span> <span>${text}</span>`;
+
+    // Inline default styles to ensure visibility
+    btn.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0a66c2;
+        color: white;
+        border: none;
+        border-radius: 16px;
+        padding: 5px 12px;
+        font-weight: 600;
+        font-size: 13px;
+        margin-left: 8px;
+        cursor: pointer;
+        line-height: 1.2;
+    `;
+
     btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -177,181 +183,100 @@ function createButton(icon, text, onClick) {
     return btn;
 }
 
-// --- Action Handler ---
+// --- ACTION HANDLER (Copy/Paste Logic) ---
 async function handleAction(element, type, button) {
-    // 1. Auth Check
     let licenseKey;
     try {
         const store = await chrome.storage.sync.get(['licenseKey']);
         licenseKey = store.licenseKey;
-    } catch (e) {
-        showToast("⚠️ Extensión desconectada. Recarga la página.");
-        return;
-    }
+    } catch { return; }
 
     if (!licenseKey) {
-        showModal('Falta Clave', 'Configura tu clave en la extensión.');
+        alert('Configura tu clave en la extensión primero.');
         return;
     }
 
-    // 2. Extract Text
     let selector = TEXT_SELECTOR;
     if (type === 'reply') selector = COMMENT_TEXT_SELECTOR;
 
-    // Attempt standard + fallback
-    const textNode = element.querySelector(selector) || element.innerText;
-    let text = "";
-    if (typeof textNode === 'string') text = textNode;
-    else if (textNode) text = textNode.innerText;
+    let textNode = element.querySelector(selector) || element.innerText;
+    let text = (typeof textNode === 'string') ? textNode : textNode.innerText;
 
-    if (!text || text.length < 5) text = element.innerText;
-    text = text.trim();
+    if (!text || text.length < 5) text = element.innerText; // Fallback
 
-    if (!text) {
-        showToast("❌ No encontré texto.");
-        return;
-    }
-
-    // 3. UI Loading
-    const oldContent = button.innerHTML;
-    button.innerHTML = '⏳';
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '⏳...';
     button.disabled = true;
 
-    // 4. Prompt Logic
     let promptPrefix = "";
     if (type === 'summarize') promptPrefix = "Resume este post de LinkedIn en español (bullet points): ";
     if (type === 'comment') promptPrefix = "Genera un comentario profesional y cercano para este post: ";
     if (type === 'reply') promptPrefix = "Genera una respuesta breve y amable para este comentario: ";
 
-    const finalPrompt = promptPrefix + "\n\n" + text;
-
     try {
         const response = await sendMessage({
             action: 'generate_comment',
             licenseKey: licenseKey,
-            prompt: finalPrompt
+            prompt: promptPrefix + "\n\n" + text
         });
 
         if (response.success) {
-            const actions = [
+            showModal('Resultado IA', response.result, [
                 { label: 'Copiar', primary: true, onClick: () => copyText(response.result) }
-            ];
-
-            // Add "Insert" button if we can find an editor
-            if (type === 'comment' || type === 'reply') {
-                actions.unshift({
-                    label: 'Insertar',
-                    primary: true,
-                    onClick: () => insertText(element, response.result)
-                });
-            }
-
-            showModal('Resultado IA', response.result, actions);
+            ]);
         } else {
-            showModal('Error', response.error);
+            alert("Error: " + response.error);
         }
-    } catch (err) {
-        showModal('Error Critico', err.message);
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión. Recarga.");
     } finally {
-        button.innerHTML = oldContent;
+        button.innerHTML = originalHtml;
         button.disabled = false;
     }
 }
 
 function sendMessage(payload) {
     return new Promise((resolve, reject) => {
-        try {
-            chrome.runtime.sendMessage(payload, r => {
-                if (chrome.runtime.lastError) reject(chrome.runtime.lastError.message);
-                else resolve(r);
-            });
-        } catch (e) { reject("Extensión recargada. Refresca la web."); }
+        chrome.runtime.sendMessage(payload, r => {
+            if (chrome.runtime.lastError) reject(chrome.runtime.lastError.message);
+            else resolve(r);
+        });
     });
 }
 
-// --- Utils ---
 function copyText(txt) {
     navigator.clipboard.writeText(txt);
-    showToast("¡Copiado!");
 }
 
-function insertText(context, text) {
-    // Strategy: Find closest 'reply' or 'comment' button to open editor, then find editor.
-    // This is complex on LinkedIn. Best effort:
-    // 1. If it's a post, click 'Comment' button.
-    // 2. If it's a reply, click 'Reply' button.
-
-    let triggerBtn = context.querySelector('.comment-button') || // Post comment
-        context.querySelector('.reply-action') ||   // Comment reply
-        context.querySelector('button[aria-label*="Reply"]');
-
-    if (triggerBtn) triggerBtn.click();
-
-    setTimeout(() => {
-        const editor = document.activeElement.classList.contains('ql-editor') ?
-            document.activeElement :
-            context.querySelector('.ql-editor');
-
-        if (editor) {
-            editor.focus();
-            document.execCommand('insertText', false, text);
-        } else {
-            copyText(text);
-            showToast("No encontré el editor. Texto copiado.");
-        }
-    }, 500);
-}
-
-// --- UI ---
-function showToast(msg) {
-    const d = document.createElement('div');
-    d.innerText = msg;
-    d.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:10px;border-radius:5px;z-index:99999;';
-    document.body.appendChild(d);
-    setTimeout(() => d.remove(), 3000);
-}
-
+// --- MODAL UI ---
 function showModal(title, content, btns) {
     let ol = document.querySelector('.ingenia-overlay');
     if (ol) ol.remove();
 
     ol = document.createElement('div');
     ol.className = 'ingenia-overlay';
+    // Inline Overlay Styles
+    ol.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;display:flex;justify-content:center;align-items:center;";
+
     ol.innerHTML = `
-    <div class="ingenia-modal-box">
-        <div class="header">
-            <h3>${title}</h3>
-            <button onclick="this.closest('.ingenia-overlay').remove()">×</button>
+    <div style="background:#1e293b;width:500px;max-width:90%;border-radius:12px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.5);color:#fff;font-family:sans-serif;">
+        <div style="padding:15px;background:#0f172a;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;font-size:16px;">${title}</h3>
+            <button onclick="this.closest('.ingenia-overlay').remove()" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px;">×</button>
         </div>
-        <div class="body">${formatContent(content)}</div>
-        <div class="footer" id="modal-footer"></div>
+        <div style="padding:20px;white-space:pre-wrap;line-height:1.5;color:#cbd5e1;max-height:60vh;overflow-y:auto;">${content}</div>
+        <div style="padding:15px;background:#1e293b;border-top:1px solid #334155;text-align:right;" id="modal-footer"></div>
     </div>`;
 
     const ft = ol.querySelector('#modal-footer');
     btns.forEach(b => {
         const btn = document.createElement('button');
         btn.innerText = b.label;
+        btn.style.cssText = "background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;";
         btn.onclick = () => { if (b.onClick) b.onClick(); ol.remove(); };
-
-        // Premium Button Styling (Inline to ensure it overrides)
-        if (b.primary) {
-            btn.style.cssText = "background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s;";
-            btn.onmouseover = () => btn.style.background = "#2563eb";
-            btn.onmouseout = () => btn.style.background = "#3b82f6";
-        } else {
-            btn.style.cssText = "background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;";
-            btn.onmouseover = () => { btn.style.background = "#334155"; btn.style.color = "white"; };
-            btn.onmouseout = () => { btn.style.background = "transparent"; btn.style.color = "#94a3b8"; };
-        }
-
         ft.appendChild(btn);
     });
 
     document.body.appendChild(ol);
-}
-
-// Helper for formatting
-function formatContent(text) {
-    // Simple bolding and paragraph breaks
-    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 }
