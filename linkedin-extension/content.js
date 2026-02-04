@@ -1,273 +1,294 @@
-// --- Constants ---
-const OBSERVER_TARGET = document.body;
-const POST_SELECTOR = '.feed-shared-update-v2, div[data-urn], .occludable-update';
-const TEXT_SELECTOR = '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view, .feed-shared-inline-show-more-text';
-const AUTHOR_SELECTOR = '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title';
+// --- Floating Dashboard & Logic ---
 
-// --- State ---
-let currentVisiblePost = null;
-let dashboardElement = null;
-
-// --- Initialization ---
-function init() {
-    createDashboard();
-    startScrollObserver();
-
-    // Also handle comment buttons (keep those as they were working fine usually)
-    setInterval(injectCommentButtons, 2000);
+// 1. INJECT STYLES PROGRAMMATICALLY (To guarantee they exist)
+const css = `
+#ingenia-dashboard {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    border: 1px solid #334155;
+    z-index: 2147483647; /* Max Z-Index */
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: ingeniaSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-// --- Dashboard UI ---
+@keyframes ingeniaSlideIn {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ingenia-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 8px;
+}
+
+.ingenia-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ingenia-status {
+    width: 8px; 
+    height: 8px; 
+    border-radius: 50%; 
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+    transition: all 0.3s;
+}
+
+.ingenia-status.active {
+    background: #4ade80;
+    box-shadow: 0 0 8px #4ade80;
+}
+
+.ingenia-target {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ingenia-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ingenia-btn {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.ingenia-btn-secondary {
+    background: rgba(255,255,255,0.05);
+    color: #cbd5e1;
+    border: 1px solid #475569;
+}
+
+.ingenia-btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.ingenia-btn-primary {
+    background: #0a66c2;
+    color: white;
+}
+
+.ingenia-btn-primary:hover {
+    background: #004182;
+}
+
+/* Comment reply buttons */
+.ingenia-reply-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    margin-left: 5px;
+    font-size: 16px;
+}
+.ingenia-reply-btn:hover {
+    background: rgba(10, 102, 194, 0.1);
+}
+`;
+
+function injectStyles() {
+    if (document.getElementById('ingenia-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'ingenia-styles';
+    style.textContent = css;
+    document.head.appendChild(style);
+}
+
+// 2. STATE
+let currentPost = null;
+
+// 3. DASHBOARD CREATION
 function createDashboard() {
     if (document.getElementById('ingenia-dashboard')) return;
 
-    const dash = document.createElement('div');
-    dash.id = 'ingenia-dashboard';
-
-    // HTML Structure
-    dash.innerHTML = `
-        <div class="ingenia-dash-header">
-            <span class="ingenia-status-dot"></span>
-            <span id="ingenia-target-name">Esperando post...</span>
+    const div = document.createElement('div');
+    div.id = 'ingenia-dashboard';
+    div.innerHTML = `
+        <div class="ingenia-header">
+            <div class="ingenia-title">
+                <span class="ingenia-status" id="ingenia-status-dot"></span>
+                IngenIA Panel
+            </div>
+            <!-- <button style="background:none;border:none;color:#64748b;cursor:pointer;">×</button> -->
         </div>
-        <div class="ingenia-dash-actions">
-            <button id="ingenia-btn-summarize" class="ingenia-dash-btn">
+        <div class="ingenia-target" id="ingenia-target-text">
+            Esperando post...
+        </div>
+        <div class="ingenia-actions">
+            <button class="ingenia-btn ingenia-btn-secondary" id="btn-summarize">
                 📝 Resumir
             </button>
-            <button id="ingenia-btn-comment" class="ingenia-dash-btn primary">
-                ⚡️ Comentar
+            <button class="ingenia-btn ingenia-btn-primary" id="btn-comment">
+                💬 Comentar
             </button>
         </div>
     `;
 
-    document.body.appendChild(dash);
-    dashboardElement = dash;
+    document.body.appendChild(div);
 
-    // Event Listeners
-    document.getElementById('ingenia-btn-summarize').addEventListener('click', () => {
-        if (currentVisiblePost) handleAction(currentVisiblePost, 'summarize', document.getElementById('ingenia-btn-summarize'));
-    });
-
-    document.getElementById('ingenia-btn-comment').addEventListener('click', () => {
-        if (currentVisiblePost) handleAction(currentVisiblePost, 'comment', document.getElementById('ingenia-btn-comment'));
-    });
+    // Bind Events
+    document.getElementById('btn-summarize').onclick = () => runAction('summarize');
+    document.getElementById('btn-comment').onclick = () => runAction('comment');
 }
 
-function updateDashboard(post) {
-    if (!post) return;
-
-    currentVisiblePost = post;
-    const authorEl = post.querySelector(AUTHOR_SELECTOR);
-    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Post desconocido"; // Clean up name
-
-    const targetNameEl = document.getElementById('ingenia-target-name');
-    if (targetNameEl) targetNameEl.innerText = limitText(authorName, 20);
-
-    const dot = document.querySelector('.ingenia-status-dot');
-    if (dot) dot.style.background = '#4ade80'; // Green active
-}
-
-function limitText(text, len) {
-    if (text.length <= len) return text;
-    return text.substring(0, len) + '...';
-}
-
-// --- Scroll/Visibility Logic ---
-function startScrollObserver() {
-    // We scan for posts and check which one is closest to center of screen
-    const checkVisibility = () => {
-        const posts = document.querySelectorAll(POST_SELECTOR);
-        let closestPost = null;
-        let minDistance = Infinity;
-
+// 4. SCROLL OBSERVER (The "Eye")
+function startObserving() {
+    const check = () => {
+        const posts = document.querySelectorAll('.feed-shared-update-v2, div[data-urn], .occludable-update');
         const viewportCenter = window.innerHeight / 2;
+        let closest = null;
+        let minDist = Infinity;
 
         posts.forEach(post => {
-            const rect = post.getBoundingClientRect();
-            // Calculate distance from post center to viewport center
-            const postCenter = rect.top + (rect.height / 2);
-            const distance = Math.abs(viewportCenter - postCenter);
-
-            // Only consider posts that are actually somewhat on screen
-            if (rect.bottom > 0 && rect.top < window.innerHeight) {
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestPost = post;
+            const r = post.getBoundingClientRect();
+            // Check if post overlaps center
+            if (r.top < viewportCenter && r.bottom > viewportCenter) {
+                const dist = Math.abs((r.top + r.height / 2) - viewportCenter);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = post;
                 }
             }
         });
 
-        if (closestPost && closestPost !== currentVisiblePost) {
-            updateDashboard(closestPost);
-
-            // Optional: Highlight border to show user what's selected (Subtle)
-            // posts.forEach(p => p.style.border = 'none');
-            // closestPost.style.border = '2px solid #3b82f6';
+        if (closest && closest !== currentPost) {
+            updateDashboardTarget(closest);
         }
     };
 
-    // Check on scroll and interval (for dynamic loading)
-    window.addEventListener('scroll', checkVisibility, { passive: true });
-    setInterval(checkVisibility, 1000);
+    window.addEventListener('scroll', check, { passive: true });
+    setInterval(check, 1000); // Polling fallback
 }
 
-// --- Logic for Comments (Keep existing injection for specific replies) ---
-const COMMENT_SELECTOR = '.comments-comment-item, .feed-shared-comment-item';
-function injectCommentButtons() {
-    const allButtons = document.querySelectorAll('button');
-    allButtons.forEach(btn => {
-        if (btn.dataset.ingeniaHandled) return;
-        const width = btn.offsetWidth;
-        if (width === 0) return; // Skip hidden
+function updateDashboardTarget(post) {
+    currentPost = post;
+    const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name');
+    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Usuario desconocido";
 
-        const text = (btn.innerText || "").toLowerCase().trim();
-        const label = (btn.getAttribute('aria-label') || "").toLowerCase();
+    const targetText = document.getElementById('ingenia-target-text');
+    const dot = document.getElementById('ingenia-status-dot');
 
-        const isReply = text === 'responder' || text === 'reply' || label.includes('responder') || label.includes('reply');
-
-        if (isReply) {
-            const commentItem = btn.closest(COMMENT_SELECTOR) || btn.closest('article');
-            if (commentItem) {
-                const iaBtn = document.createElement('button');
-                iaBtn.innerHTML = '✏️';
-                iaBtn.className = 'ingenia-btn-mini';
-                iaBtn.title = "IA Reply";
-                iaBtn.style.marginLeft = "8px";
-                iaBtn.onclick = (e) => {
-                    e.preventDefault();
-                    handleAction(commentItem, 'reply', iaBtn);
-                };
-
-                btn.insertAdjacentElement('afterend', iaBtn);
-                btn.dataset.ingeniaHandled = 'true';
-            }
-        }
-    });
+    if (targetText && dot) {
+        targetText.innerText = "Detectado: " + authorName;
+        dot.classList.add('active');
+    }
 }
 
-// --- Action Handler (Unified) ---
-async function handleAction(element, type, button) {
-    let licenseKey;
-    try {
-        const store = await chrome.storage.sync.get(['licenseKey']);
-        licenseKey = store.licenseKey;
-    } catch { return; }
-
-    if (!licenseKey) {
-        alert('Configura tu clave en la extensión primero.');
+// 5. ACTION LOGIC
+async function runAction(type) {
+    if (!currentPost) {
+        alert("¡No he detectado ningún post! Haz scroll hasta centrar uno.");
         return;
     }
 
-    // Selector logic
-    let selector = TEXT_SELECTOR;
-    if (type === 'reply') selector = '.comments-comment-item__main-content';
+    const btn = document.getElementById(type === 'summarize' ? 'btn-summarize' : 'btn-comment');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳';
+    btn.disabled = true;
 
-    let textNode = element.querySelector(selector) || element.innerText;
-    let text = (typeof textNode === 'string') ? textNode : textNode.innerText;
+    // Extract Text
+    const textEl = currentPost.querySelector('.feed-shared-update-v2__description, .update-components-text') || currentPost;
+    const text = textEl.innerText;
 
-    if (!text || text.length < 5) text = element.innerText;
+    // Get Key
+    const { licenseKey } = await chrome.storage.sync.get(['licenseKey']);
+    if (!licenseKey) {
+        alert("Falta la licencia.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        return;
+    }
 
-    // UI Loading state
-    const originalText = button.innerHTML;
-    button.innerHTML = '⏳';
-    button.disabled = true;
-
-    // Prompts
-    let promptPrefix = "";
-    if (type === 'summarize') promptPrefix = "Resume este post de LinkedIn en español (bullet points): ";
-    if (type === 'comment') promptPrefix = "Genera un comentario profesional y cercano para este post: ";
-    if (type === 'reply') promptPrefix = "Genera una respuesta breve y amable para este comentario: ";
+    // Prompt
+    const prompt = type === 'summarize'
+        ? "Resume esto en español (bullets): " + text
+        : "Genera un comentario profesional y cercano: " + text;
 
     try {
-        const response = await sendMessage({
-            action: 'generate_comment',
-            licenseKey: licenseKey,
-            prompt: promptPrefix + "\n\n" + text
-        });
+        const res = await new Promise(resolve => chrome.runtime.sendMessage({
+            action: 'generate_comment', licenseKey, prompt
+        }, resolve));
 
-        if (response.success) {
-            showModal('Resultado IA', response.result, [
-                { label: 'Copiar', primary: true, onClick: () => copyText(response.result) },
-                { label: 'Insertar', primary: false, onClick: () => insertText(element, response.result) }
-            ]);
+        if (res.success) {
+            navigator.clipboard.writeText(res.result);
+            if (type === 'comment') {
+                // Try to alert just the result
+                showModal("Resultado", res.result);
+            } else {
+                showModal("Resumen", res.result);
+            }
         } else {
-            alert("Error: " + response.error);
+            alert("Error: " + res.error);
         }
     } catch (e) {
         console.error(e);
-    } finally {
-        button.innerHTML = originalText;
-        button.disabled = false;
+        alert("Error de conexión");
     }
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
 }
 
-function sendMessage(payload) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(payload, r => {
-            if (chrome.runtime.lastError) reject(chrome.runtime.lastError.message);
-            else resolve(r);
-        });
-    });
-}
+// --- MODAL (Simple, Reused) ---
+function showModal(title, text) {
+    const existing = document.getElementById('ingenia-modal');
+    if (existing) existing.remove();
 
-function copyText(txt) {
-    navigator.clipboard.writeText(txt);
-}
-
-function insertText(context, text) {
-    // Find closest open editor or click reply/comment to open it
-    let triggerBtn = context.querySelector('.comment-button') || context.querySelector('.reply-action') || context.querySelector('button[aria-label*="Reply"]');
-    if (triggerBtn) triggerBtn.click();
-
-    setTimeout(() => {
-        const editor = document.activeElement.classList.contains('ql-editor') ? document.activeElement : context.querySelector('.ql-editor');
-        if (editor) {
-            editor.focus();
-            document.execCommand('insertText', false, text);
-        } else {
-            copyText(text);
-            alert("Texto copiado al portapapeles (No se pudo insertar automáticamente).");
-        }
-    }, 800);
-}
-
-
-// --- Modal UI ---
-function showModal(title, content, btns) {
-    let ol = document.querySelector('.ingenia-overlay');
-    if (ol) ol.remove();
-
-    ol = document.createElement('div');
-    ol.className = 'ingenia-overlay';
-    // Forced Inline Styles for Modal Overlay
-    ol.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(2px);";
-
-    ol.innerHTML = `
-    <div style="background:#1e293b;width:500px;max-width:90%;border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.5);color:#fff;font-family:system-ui, sans-serif;border:1px solid #334155;">
-        <div style="padding:16px 20px;background:#0f172a;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;font-size:16px;font-weight:600;color:#f8fafc;">${title}</h3>
-            <button onclick="this.closest('.ingenia-overlay').remove()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:24px;line-height:1;">×</button>
+    const div = document.createElement('div');
+    div.id = 'ingenia-modal';
+    div.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999999;display:flex;justify-content:center;align-items:center;";
+    div.innerHTML = `
+        <div style="background:#1e293b;width:500px;padding:20px;border-radius:12px;color:white;font-family:sans-serif;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin-top:0">${title}</h3>
+            <div style="background:#0f172a;padding:15px;border-radius:8px;margin:15px 0;max-height:300px;overflow:auto;white-space:pre-wrap;">${text}</div>
+            <div style="text-align:right;">
+                <button onclick="this.closest('#ingenia-modal').remove()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">Cerrar</button>
+            </div>
         </div>
-        <div style="padding:24px;white-space:pre-wrap;line-height:1.6;color:#cbd5e1;max-height:60vh;overflow-y:auto;font-size:15px;">${content}</div>
-        <div style="padding:16px 24px;background:#1e293b;border-top:1px solid #334155;display:flex;justify-content:flex-end;gap:10px;" id="modal-footer"></div>
-    </div>`;
-
-    const ft = ol.querySelector('#modal-footer');
-    btns.forEach(b => {
-        const btn = document.createElement('button');
-        btn.innerText = b.label;
-        if (b.primary) {
-            btn.style.cssText = "background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;transition:background 0.2s;";
-        } else {
-            btn.style.cssText = "background:transparent;color:#94a3b8;border:1px solid #475569;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;transition:all 0.2s;";
-        }
-        btn.onclick = () => { if (b.onClick) b.onClick(); ol.remove(); };
-        ft.appendChild(btn);
-    });
-
-    document.body.appendChild(ol);
+    `;
+    document.body.appendChild(div);
 }
 
-
-// Start
-init();
+// --- INITIALIZATION ---
+injectStyles();
+createDashboard();
+startObserving();
+console.log("IngenIA Dashboard Loaded 🚀");
