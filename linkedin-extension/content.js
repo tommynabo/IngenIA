@@ -1,6 +1,6 @@
 // --- Floating Dashboard & Logic ---
 
-// 1. INJECT STYLES PROGRAMMATICALLY (Includes visual highlight for active post)
+// 1. INJECT STYLES PROGRAMMATICALLY
 const css = `
 #ingenia-dashboard {
     position: fixed;
@@ -16,81 +16,39 @@ const css = `
     z-index: 2147483647; 
     font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateY(20px);
     animation: ingeniaSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-
-@keyframes ingeniaSlideIn {
-    to { opacity: 1; transform: translateY(0); }
-}
+@keyframes ingeniaSlideIn { to { opacity: 1; transform: translateY(0); } }
 
 .ingenia-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #334155;
-    padding-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;
 }
-
-.ingenia-title {
-    font-weight: 700;
-    font-size: 14px;
-    color: #f8fafc;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
+.ingenia-title { font-weight: 700; font-size: 14px; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
 .ingenia-status {
-    width: 8px; height: 8px; border-radius: 50%; 
-    background: #ef4444;
-    box-shadow: 0 0 8px #ef4444;
-    transition: all 0.3s;
+    width: 8px; height: 8px; border-radius: 50%; background: #ef4444;
+    box-shadow: 0 0 8px #ef4444; transition: all 0.3s;
 }
-.ingenia-status.active {
-    background: #4ade80;
-    box-shadow: 0 0 8px #4ade80;
-}
-
+.ingenia-status.active { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
 .ingenia-target {
-    font-size: 12px;
-    color: #94a3b8;
-    margin-bottom: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 12px; color: #94a3b8; margin-bottom: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
 .ingenia-actions { display: flex; gap: 8px; }
-
 .ingenia-btn {
-    flex: 1;
-    border: none;
-    border-radius: 6px;
-    padding: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
+    flex: 1; border: none; border-radius: 6px; padding: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .ingenia-btn-secondary { background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid #475569; }
 .ingenia-btn-secondary:hover { background: rgba(255,255,255,0.1); color: white; }
 .ingenia-btn-primary { background: #0a66c2; color: white; }
 .ingenia-btn-primary:hover { background: #004182; }
-
-/* ACTIVE POST HIGHLIGHT */
 .ingenia-active-post {
     position: relative;
-    border: 2px solid #0a66c2 !important;
-    box-shadow: 0 0 15px rgba(10, 102, 194, 0.1) !important;
+    border: 3px solid #0a66c2 !important;
+    box-shadow: 0 0 15px rgba(10, 102, 194, 0.2) !important;
     border-radius: 8px;
-    transition: all 0.3s ease;
 }
 `;
 
@@ -119,139 +77,138 @@ function createDashboard() {
             </div>
         </div>
         <div class="ingenia-target" id="ingenia-target-text">
-            Haz clic en "Ver más" o haz scroll...
+            Haz clic en un post para empezar...
         </div>
         <div class="ingenia-actions">
-            <button class="ingenia-btn ingenia-btn-secondary" id="btn-summarize">
-                📝 Resumir
-            </button>
-            <button class="ingenia-btn ingenia-btn-primary" id="btn-comment">
-                💬 Comentar
-            </button>
+            <button class="ingenia-btn ingenia-btn-secondary" id="btn-summarize">📝 Resumir</button>
+            <button class="ingenia-btn ingenia-btn-primary" id="btn-comment">💬 Comentar</button>
         </div>
     `;
-
     document.body.appendChild(div);
 
     document.getElementById('btn-summarize').onclick = () => runAction('summarize');
     document.getElementById('btn-comment').onclick = () => runAction('comment');
 }
 
-// 4. DETECTION LOGIC ("See More" Click + Scroll fallback)
-
+// 4. DETECTION LOGIC - CLICK & VISUAL CENTER
 function initDetectors() {
-    // A. CLICK DETECTOR (Aggressive)
-    // Listens for ANY click. If it's inside a post, select it.
+    // A. Manual Click Selection
     document.addEventListener('click', (e) => {
-        const target = e.target;
-
-        // Robust strategy: Find any ancestor with 'data-urn' (standard LinkedIn post ID)
-        // or the class 'feed-shared-update-v2'
-        const post = target.closest('div[data-urn]') ||
-            target.closest('.feed-shared-update-v2') ||
-            target.closest('.occludable-update');
-
-        if (post) {
-            console.log("IngenIA: Click interaction detected on post", post);
-            updateDashboardTarget(post, true);
-        }
-    }, true); // Capture phase
-
-    // B. SCROLL DETECTOR (Passive background update)
-    const scrollCheck = () => {
-        // Only update if we don't have a confirmed "Click Selection"
-        // OR if the user has scrolled significantly away from the selected post
-        if (currentPost) {
-            const rect = currentPost.getBoundingClientRect();
-            // If active post is off-screen, auto-release hash to allow visual scanner
-            if (rect.bottom < 0 || rect.top > window.innerHeight) {
-                // optionally clear selection or let the code below pick a new one
-            }
-        }
-
-        // Optional: Continuous scanning could be added here if desired, 
-        // but User prefers "Click to Select" or "Auto-use on Action".
-    };
-
-    // We remove the aggressive scroll interval to avoid "jumping" selection
-    // while the user is reading a specific post.
-    // window.addEventListener('scroll', scrollCheck, { passive: true });
+        const post = findPostContainer(e.target);
+        if (post) updateDashboardTarget(post);
+    }, true);
 }
 
-function updateDashboardTarget(post, isClick) {
+// Helper: Walk up DOM to find ANY potential post container
+function findPostContainer(el) {
+    if (!el) return null;
+
+    // 1. Try standard LinkedIn IDs
+    const urn = el.closest('div[data-urn]');
+    if (urn) return urn;
+
+    // 2. Try common classes
+    const cls = el.closest('.feed-shared-update-v2, .occludable-update, article, .feed-shared-update');
+    if (cls) return cls;
+
+    // 3. Heuristic: Is it a big div with text?
+    // Stop if we hit body or too high up
+    let cur = el;
+    while (cur && cur.tagName !== 'BODY') {
+        if (cur.classList && (cur.classList.contains('feed-shared-update-v2') || cur.getAttribute('data-urn'))) {
+            return cur;
+        }
+        cur = cur.parentElement;
+    }
+    return null;
+}
+
+function updateDashboardTarget(post) {
+    if (!post) return;
     if (currentPost && currentPost !== post) {
         currentPost.classList.remove('ingenia-active-post');
-        // Clean up old border immediately
-        currentPost.style.border = '';
-        currentPost.style.boxShadow = '';
+        currentPost.style.border = ''; // Clean cleanup
     }
 
     currentPost = post;
-
-    // Force Visual Feedback
     post.classList.add('ingenia-active-post');
-    post.style.border = '2px solid #0a66c2'; // Force inline to be sure
-    post.style.borderRadius = '8px';
-    post.style.boxShadow = '0 0 10px rgba(10,102,194,0.2)';
+    post.style.border = '3px solid #0a66c2'; // Force inline
 
-    // Update Text
-    const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title');
-    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Post";
+    // Try to get author name
+    let authorName = "Post detectado";
+    try {
+        const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name') ||
+            post.querySelector('span[aria-hidden="true"]');
+        if (authorEl) authorName = authorEl.innerText.split('\n')[0];
+    } catch (e) { }
 
-    const targetText = document.getElementById('ingenia-target-text');
+    const txt = document.getElementById('ingenia-target-text');
     const dot = document.getElementById('ingenia-status-dot');
-
-    if (targetText && dot) {
-        targetText.innerText = "Seleccionado: " + authorName;
+    if (txt) txt.innerText = "Seleccionado: " + authorName.substring(0, 25);
+    if (dot) {
         dot.classList.add('active');
         dot.style.background = '#4ade80';
     }
 }
 
+
+// --- THE NUCLEAR FALLBACK ---
+// Finds what is physically in the center of the viewport
+function getVisualCenterPost() {
+    const x = window.innerWidth / 2;
+    const y = window.innerHeight / 2;
+
+    // Raycast: What element is at (x,y)?
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+
+    console.log("IngenIA Raycast Hit:", el);
+
+    // Walk up to find post
+    return findPostContainer(el);
+}
+
+
 // 5. ACTION LOGIC
 async function runAction(type) {
-    const btn = document.getElementById(type === 'summarize' ? 'btn-summarize' : 'btn-comment');
-    const originalText = btn.innerHTML;
+    let targetPost = currentPost;
 
-    // --- JUST IN TIME SELECTION ---
-    // If no post is selected, find the one mostly visible on screen RIGHT NOW.
-    if (!currentPost) {
-        console.log("IngenIA: No post selected. Searching visible post...");
-        const posts = document.querySelectorAll('div[data-urn], .feed-shared-update-v2');
-        const viewportCenter = window.innerHeight / 2;
-        let bestCandidate = null;
-        let minDist = Infinity;
-
-        posts.forEach(p => {
-            const r = p.getBoundingClientRect();
-            if (r.top < window.innerHeight && r.bottom > 0) {
-                const dist = Math.abs((r.top + r.height / 2) - viewportCenter);
-                if (dist < minDist) {
-                    minDist = dist;
-                    bestCandidate = p;
-                }
-            }
-        });
-
-        if (bestCandidate) {
-            updateDashboardTarget(bestCandidate, false);
-        } else {
-            alert("⚠️ No encuentro ningún post en pantalla. Haz clic en uno.");
-            return;
+    // JUST IN TIME: If no selection, use Visual Center
+    if (!targetPost) {
+        console.log("IngenIA: No selection. Using Visual Center Raycast...");
+        targetPost = getVisualCenterPost();
+        if (targetPost) {
+            updateDashboardTarget(targetPost);
         }
     }
-    // -----------------------------
 
+    if (!targetPost) {
+        alert("⚠️ No encuentro ningún post. Haz clic en el texto del post que quieres comentar.");
+        return;
+    }
+
+    const btn = document.getElementById(type === 'summarize' ? 'btn-summarize' : 'btn-comment');
+    const originalText = btn.innerHTML;
     btn.innerHTML = '⏳';
     btn.disabled = true;
 
-    // Extract Text (and expand if needed)
-    const textEl = currentPost.querySelector('.feed-shared-update-v2__description, .update-components-text') || currentPost;
-    const text = textEl.innerText;
+    // Extract Text (Multiple strategies)
+    let text = "";
+    // Strategy A: Specific Classes
+    const textEl = targetPost.querySelector('.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view');
+    if (textEl) text = textEl.innerText;
+
+    // Strategy B: If empty, grab all text in the container
+    if (!text || text.length < 10) {
+        text = targetPost.innerText;
+    }
+
+    // Clean up "See more" artifacts
+    text = text.replace(/ver más|see more/gi, "");
 
     const { licenseKey } = await chrome.storage.sync.get(['licenseKey']);
     if (!licenseKey) {
-        alert("Falta licencia. Configúrala en la extensión.");
+        alert("Falta licencia.");
         btn.innerHTML = originalText;
         btn.disabled = false;
         return;
@@ -273,7 +230,6 @@ async function runAction(type) {
             alert("Error: " + res.error);
         }
     } catch (e) {
-        console.error(e);
         alert("Error de conexión");
     }
 
@@ -285,24 +241,22 @@ async function runAction(type) {
 function showModal(title, text) {
     const existing = document.getElementById('ingenia-modal');
     if (existing) existing.remove();
-
     const div = document.createElement('div');
     div.id = 'ingenia-modal';
-    div.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999999;display:flex;justify-content:center;align-items:center;";
+    div.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(5px);";
     div.innerHTML = `
-        <div style="background:#1e293b;width:500px;padding:20px;border-radius:12px;color:white;font-family:sans-serif;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-            <h3 style="margin-top:0">${title}</h3>
-            <div style="background:#0f172a;padding:15px;border-radius:8px;margin:15px 0;max-height:300px;overflow:auto;white-space:pre-wrap;">${text}</div>
-            <div style="text-align:right;">
-                <button onclick="this.closest('#ingenia-modal').remove()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">Cerrar (Copiado)</button>
+        <div style="background:#1e293b;width:600px;max-width:90%;padding:25px;border-radius:12px;color:white;font-family:sans-serif;box-shadow:0 25px 50px rgba(0,0,0,0.5);border:1px solid #334155;">
+            <h3 style="margin-top:0;font-size:18px;border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:15px;">${title}</h3>
+            <div style="background:#0f172a;padding:20px;border-radius:8px;max-height:400px;overflow:auto;white-space:pre-wrap;line-height:1.6;color:#cbd5e1;font-size:15px;">${text}</div>
+            <div style="text-align:right;margin-top:20px;">
+                <button onclick="this.closest('#ingenia-modal').remove()" style="padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">Cerrar (Texto Copiado)</button>
             </div>
         </div>
     `;
     document.body.appendChild(div);
 }
 
-// --- INITIALIZATION ---
+// Start
 injectStyles();
 createDashboard();
 initDetectors();
-console.log("IngenIA Dashboard Loaded 🚀");
