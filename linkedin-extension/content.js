@@ -1,6 +1,6 @@
 // --- Floating Dashboard & Logic ---
 
-// 1. INJECT STYLES PROGRAMMATICALLY (To guarantee they exist)
+// 1. INJECT STYLES PROGRAMMATICALLY (Includes visual highlight for active post)
 const css = `
 #ingenia-dashboard {
     position: fixed;
@@ -13,7 +13,7 @@ const css = `
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
     border: 1px solid #334155;
-    z-index: 2147483647; /* Max Z-Index */
+    z-index: 2147483647; 
     font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     transition: all 0.3s ease;
     opacity: 0;
@@ -44,14 +44,11 @@ const css = `
 }
 
 .ingenia-status {
-    width: 8px; 
-    height: 8px; 
-    border-radius: 50%; 
+    width: 8px; height: 8px; border-radius: 50%; 
     background: #ef4444;
     box-shadow: 0 0 8px #ef4444;
     transition: all 0.3s;
 }
-
 .ingenia-status.active {
     background: #4ade80;
     box-shadow: 0 0 8px #4ade80;
@@ -66,10 +63,7 @@ const css = `
     text-overflow: ellipsis;
 }
 
-.ingenia-actions {
-    display: flex;
-    gap: 8px;
-}
+.ingenia-actions { display: flex; gap: 8px; }
 
 .ingenia-btn {
     flex: 1;
@@ -85,42 +79,18 @@ const css = `
     justify-content: center;
     gap: 6px;
 }
+.ingenia-btn-secondary { background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid #475569; }
+.ingenia-btn-secondary:hover { background: rgba(255,255,255,0.1); color: white; }
+.ingenia-btn-primary { background: #0a66c2; color: white; }
+.ingenia-btn-primary:hover { background: #004182; }
 
-.ingenia-btn-secondary {
-    background: rgba(255,255,255,0.05);
-    color: #cbd5e1;
-    border: 1px solid #475569;
-}
-
-.ingenia-btn-secondary:hover {
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-
-.ingenia-btn-primary {
-    background: #0a66c2;
-    color: white;
-}
-
-.ingenia-btn-primary:hover {
-    background: #004182;
-}
-
-/* Comment reply buttons */
-.ingenia-reply-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px; height: 30px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    border-radius: 50%;
-    margin-left: 5px;
-    font-size: 16px;
-}
-.ingenia-reply-btn:hover {
-    background: rgba(10, 102, 194, 0.1);
+/* ACTIVE POST HIGHLIGHT */
+.ingenia-active-post {
+    position: relative;
+    border: 2px solid #0a66c2 !important;
+    box-shadow: 0 0 15px rgba(10, 102, 194, 0.1) !important;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 `;
 
@@ -147,10 +117,9 @@ function createDashboard() {
                 <span class="ingenia-status" id="ingenia-status-dot"></span>
                 IngenIA Panel
             </div>
-            <!-- <button style="background:none;border:none;color:#64748b;cursor:pointer;">×</button> -->
         </div>
         <div class="ingenia-target" id="ingenia-target-text">
-            Esperando post...
+            Haz clic en "Ver más" o haz scroll...
         </div>
         <div class="ingenia-actions">
             <button class="ingenia-btn ingenia-btn-secondary" id="btn-summarize">
@@ -164,14 +133,33 @@ function createDashboard() {
 
     document.body.appendChild(div);
 
-    // Bind Events
     document.getElementById('btn-summarize').onclick = () => runAction('summarize');
     document.getElementById('btn-comment').onclick = () => runAction('comment');
 }
 
-// 4. SCROLL OBSERVER (The "Eye")
-function startObserving() {
-    const check = () => {
+// 4. DETECTION LOGIC ("See More" Click + Scroll fallback)
+
+function initDetectors() {
+    // A. CLICK DETECTOR (High Priority)
+    // Listens for "ver más" clicks to instantly lock onto that post
+    document.addEventListener('click', (e) => {
+        // Check if detected element is a "See More" button or inside one
+        const target = e.target;
+        const isSeeMore = target.matches('.feed-shared-inline-show-more-text__see-more-less-toggle') ||
+            target.innerText.toLowerCase().includes('ver más') ||
+            target.innerText.toLowerCase().includes('see more');
+
+        // Also allow clicking the post body itself as a selection signal
+        const post = target.closest('.feed-shared-update-v2, div[data-urn], .occludable-update');
+
+        if (post && (isSeeMore || post.contains(document.activeElement))) {
+            updateDashboardTarget(post, true); // true = forceful click
+        }
+    }, true);
+
+    // B. SCROLL DETECTOR (Passive background update)
+    // Only updates if we don't have a "freshly clicked" post, or simply follows user gaze
+    const scrollCheck = () => {
         const posts = document.querySelectorAll('.feed-shared-update-v2, div[data-urn], .occludable-update');
         const viewportCenter = window.innerHeight / 2;
         let closest = null;
@@ -179,7 +167,6 @@ function startObserving() {
 
         posts.forEach(post => {
             const r = post.getBoundingClientRect();
-            // Check if post overlaps center
             if (r.top < viewportCenter && r.bottom > viewportCenter) {
                 const dist = Math.abs((r.top + r.height / 2) - viewportCenter);
                 if (dist < minDist) {
@@ -190,24 +177,36 @@ function startObserving() {
         });
 
         if (closest && closest !== currentPost) {
-            updateDashboardTarget(closest);
+            updateDashboardTarget(closest, false);
         }
     };
 
-    window.addEventListener('scroll', check, { passive: true });
-    setInterval(check, 1000); // Polling fallback
+    window.addEventListener('scroll', scrollCheck, { passive: true });
+    setInterval(scrollCheck, 1500); // Polling for robust detection
 }
 
-function updateDashboardTarget(post) {
+
+function updateDashboardTarget(post, isClick) {
+    // Remove highlight from old post
+    if (currentPost && currentPost !== post) {
+        currentPost.classList.remove('ingenia-active-post');
+    }
+
     currentPost = post;
+
+    // Add Highlight (Blue Border)
+    post.classList.add('ingenia-active-post');
+
+    // Update Text
     const authorEl = post.querySelector('.update-components-actor__name, .feed-shared-actor__name');
-    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Usuario desconocido";
+    const authorName = authorEl ? authorEl.innerText.split('\n')[0] : "Post detectado";
 
     const targetText = document.getElementById('ingenia-target-text');
     const dot = document.getElementById('ingenia-status-dot');
 
     if (targetText && dot) {
-        targetText.innerText = "Detectado: " + authorName;
+        const prefix = isClick ? "Seleccionado: " : "Detectado: ";
+        targetText.innerText = prefix + authorName;
         dot.classList.add('active');
     }
 }
@@ -215,7 +214,7 @@ function updateDashboardTarget(post) {
 // 5. ACTION LOGIC
 async function runAction(type) {
     if (!currentPost) {
-        alert("¡No he detectado ningún post! Haz scroll hasta centrar uno.");
+        alert("¡Selecciona un post primero!");
         return;
     }
 
@@ -224,20 +223,20 @@ async function runAction(type) {
     btn.innerHTML = '⏳';
     btn.disabled = true;
 
-    // Extract Text
+    // Extract Text (and expand if needed)
+    // If "See more" exists and wasn't clicked, we might miss text. 
+    // Best effort: grab hidden text too if present in DOM.
     const textEl = currentPost.querySelector('.feed-shared-update-v2__description, .update-components-text') || currentPost;
     const text = textEl.innerText;
 
-    // Get Key
     const { licenseKey } = await chrome.storage.sync.get(['licenseKey']);
     if (!licenseKey) {
-        alert("Falta la licencia.");
+        alert("Falta licencia. Configúrala en la extensión.");
         btn.innerHTML = originalText;
         btn.disabled = false;
         return;
     }
 
-    // Prompt
     const prompt = type === 'summarize'
         ? "Resume esto en español (bullets): " + text
         : "Genera un comentario profesional y cercano: " + text;
@@ -249,12 +248,7 @@ async function runAction(type) {
 
         if (res.success) {
             navigator.clipboard.writeText(res.result);
-            if (type === 'comment') {
-                // Try to alert just the result
-                showModal("Resultado", res.result);
-            } else {
-                showModal("Resumen", res.result);
-            }
+            showModal(type === 'summarize' ? "Resumen" : "Comentario Sugerido", res.result);
         } else {
             alert("Error: " + res.error);
         }
@@ -267,7 +261,7 @@ async function runAction(type) {
     btn.disabled = false;
 }
 
-// --- MODAL (Simple, Reused) ---
+// --- MODAL ---
 function showModal(title, text) {
     const existing = document.getElementById('ingenia-modal');
     if (existing) existing.remove();
@@ -280,7 +274,7 @@ function showModal(title, text) {
             <h3 style="margin-top:0">${title}</h3>
             <div style="background:#0f172a;padding:15px;border-radius:8px;margin:15px 0;max-height:300px;overflow:auto;white-space:pre-wrap;">${text}</div>
             <div style="text-align:right;">
-                <button onclick="this.closest('#ingenia-modal').remove()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">Cerrar</button>
+                <button onclick="this.closest('#ingenia-modal').remove()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;">Cerrar (Copiado)</button>
             </div>
         </div>
     `;
@@ -290,5 +284,5 @@ function showModal(title, text) {
 // --- INITIALIZATION ---
 injectStyles();
 createDashboard();
-startObserving();
+initDetectors();
 console.log("IngenIA Dashboard Loaded 🚀");
