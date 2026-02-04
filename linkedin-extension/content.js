@@ -1,7 +1,7 @@
 // --- Constants ---
 const OBSERVER_TARGET = document.body;
 // Wrapper typically used by LinkedIn feed updates
-const POST_SELECTOR = '.feed-shared-update-v2, div[data-urn]';
+const POST_SELECTOR = '.feed-shared-update-v2, div[data-urn], .occludable-update';
 // New target: The bar with "100 likes - 20 comments"
 const DETAILS_SELECTOR = '.social-details-social-counts, .feed-shared-social-counts, .social-details-social-activity';
 // Fallback: Action bar if counts are missing (e.g. 0 likes/comments)
@@ -44,108 +44,91 @@ function scanAndInject() {
     // Buttons for Comments
     injectCommentButtons();
 }
+
 // --- Logic for Posts (Summarize / Comment) ---
 function injectPostButtons() {
     // Broaden selector to catch any feed update
-    const posts = document.querySelectorAll('.feed-shared-update-v2, .occludable-update, div[data-urn]');
+    const posts = document.querySelectorAll(POST_SELECTOR);
 
     posts.forEach(post => {
         if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
         // TARGET FINDING STRATEGY
         // 1. Look for the "likes/comments" count strip
-        let target = post.querySelector('.social-details-social-counts') ||
-            post.querySelector('.feed-shared-social-counts');
+        let target = post.querySelector(DETAILS_SELECTOR);
 
         // 2. If missing, look for the action bar (Like, Comment, Share, Send)
         if (!target) {
-            target = post.querySelector('.feed-shared-social-action-bar') ||
-                post.querySelector('.social-actions-button-bar');
+            target = post.querySelector(ACTION_BAR_SELECTOR);
         }
 
         // 3. Last Resort: Any flex container with 'social' in class name at bottom
         if (!target) {
             const potential = Array.from(post.querySelectorAll('div[class*="social"]'));
-            target = potential.find(el => el.innerText.includes('Like') || el.innerText.includes('Recomendar') || el.children.length > 2);
+            target = potential.find(el => (el.innerText && (el.innerText.includes('Like') || el.innerText.includes('Recomendar'))) || el.children.length > 2);
         }
 
         if (target) {
-            // Create Container
-            const container = document.createElement('div');
-            container.className = 'ingenia-btn-container-small';
-
-            // Button 1: Summarize
-            const btnSum = createButton('📝', 'Resumir', () => handleAction(post, 'summarize', btnSum));
-
-            // Button 2: Comment
-            const btnComment = createButton('⚡️', 'Comentar', () => handleAction(post, 'comment', btnComment));
-
-            container.appendChild(btnSum);
-            container.appendChild(btnComment);
-
-            // Append with style ensures it sits to the right if in flex
-            container.style.marginLeft = 'auto';
-            target.appendChild(container);
-
+            injectButtons(target, post);
             // Mark processed
             post.setAttribute(INJECTED_ATTR, 'true');
         }
     });
 }
 
-// 2. Reply Buttons (Hybrid: Button Search + Comment Iteration)
+// --- Logic for Comments (Reply Pencil) ---
+function injectCommentButtons() {
+    // Strategy A: Find specific buttons (Best native feel)
+    const allButtons = document.querySelectorAll('button, .artdeco-button');
+    allButtons.forEach(btn => {
+        if (btn.dataset.ingeniaHandled) return;
 
-// Strategy A: Find specific buttons (Best native feel)
-const allButtons = document.querySelectorAll('button, .artdeco-button');
-allButtons.forEach(btn => {
-    if (btn.dataset.ingeniaHandled) return;
+        const rawText = btn.innerText || "";
+        const text = rawText.toLowerCase().trim();
+        const label = (btn.getAttribute('aria-label') || "").toLowerCase();
+        const spanText = btn.querySelector('.artdeco-button__text') ? btn.querySelector('.artdeco-button__text').innerText.toLowerCase().trim() : "";
 
-    const rawText = btn.innerText || "";
-    const text = rawText.toLowerCase().trim();
-    const label = (btn.getAttribute('aria-label') || "").toLowerCase();
-    const spanText = btn.querySelector('.artdeco-button__text') ? btn.querySelector('.artdeco-button__text').innerText.toLowerCase().trim() : "";
+        const isReply = text === 'responder' || text === 'reply' ||
+            spanText === 'responder' || spanText === 'reply' ||
+            label.includes('reply to') || label.includes('responder a') ||
+            label === 'responder' || label === 'reply';
 
-    const isReply = text === 'responder' || text === 'reply' ||
-        spanText === 'responder' || spanText === 'reply' ||
-        label.includes('reply to') || label.includes('responder a') ||
-        label === 'responder' || label === 'reply';
+        if (isReply) {
+            const commentItem = btn.closest(COMMENT_SELECTOR) ||
+                btn.closest('.feed-shared-comment-item') ||
+                btn.closest('article');
 
-    if (isReply) {
-        const commentItem = btn.closest(COMMENT_SELECTOR) ||
-            btn.closest('.feed-shared-comment-item') ||
-            btn.closest('article');
-
-        if (commentItem) {
-            injectReplyButtonDirectly(btn, commentItem);
-            btn.dataset.ingeniaHandled = 'true';
-            // Mark comment as handled too so Strategy B doesn't double up
-            commentItem.setAttribute(INJECTED_ATTR, 'true');
+            if (commentItem) {
+                injectReplyButtonDirectly(btn, commentItem);
+                btn.dataset.ingeniaHandled = 'true';
+                // Mark comment as handled too so Strategy B doesn't double up
+                commentItem.setAttribute(INJECTED_ATTR, 'true');
+            }
         }
-    }
-});
+    });
 
-// Strategy B: Iterate comments directly (Fallback for missed buttons)
-const comments = document.querySelectorAll(COMMENT_SELECTOR);
-comments.forEach(comment => {
-    if (comment.hasAttribute(INJECTED_ATTR)) return;
+    // Strategy B: Iterate comments directly (Fallback for missed buttons)
+    const comments = document.querySelectorAll(COMMENT_SELECTOR);
+    comments.forEach(comment => {
+        if (comment.hasAttribute(INJECTED_ATTR)) return;
 
-    // Try to inject in the meta/header area
-    const metaArea = comment.querySelector('.comments-comment-meta') ||
-        comment.querySelector('.feed-shared-comment-meta') ||
-        comment.querySelector('.comments-comment-item__main-content'); // Worst case fallback to content
+        // Try to inject in the meta/header area
+        const metaArea = comment.querySelector('.comments-comment-meta') ||
+            comment.querySelector('.feed-shared-comment-meta') ||
+            comment.querySelector('.comments-comment-item__main-content'); // Worst case fallback to content
 
-    if (metaArea) {
-        const iaBtn = createButton('✏️', '', () => handleAction(comment, 'reply', iaBtn));
-        iaBtn.className = 'ingenia-btn-mini ingenia-fallback-reply';
-        iaBtn.title = "Generar respuesta (Fallback)";
-        iaBtn.style.marginLeft = "8px";
-        iaBtn.style.verticalAlign = "middle";
+        if (metaArea) {
+            const iaBtn = createButton('✏️', '', () => handleAction(comment, 'reply', iaBtn));
+            iaBtn.className = 'ingenia-btn-mini ingenia-fallback-reply';
+            iaBtn.title = "Generar respuesta (Fallback)";
+            iaBtn.style.marginLeft = "8px";
+            iaBtn.style.verticalAlign = "middle";
 
-        // Append to header/meta
-        metaArea.appendChild(iaBtn);
-        comment.setAttribute(INJECTED_ATTR, 'true');
-    }
-});
+            // Append to header/meta
+            metaArea.appendChild(iaBtn);
+            comment.setAttribute(INJECTED_ATTR, 'true');
+        }
+    });
 }
 
 function injectReplyButtonDirectly(referenceBtn, commentContext) {
@@ -161,8 +144,11 @@ function injectReplyButtonDirectly(referenceBtn, commentContext) {
 function injectButtons(container, postElement) {
     const btnContainer = document.createElement('div');
     btnContainer.className = 'ingenia-btn-container-small';
-    btnContainer.style.display = 'flex';
-    btnContainer.style.gap = '8px';
+    // Style directly to ensure visibility
+    btnContainer.style.display = 'inline-flex';
+    btnContainer.style.gap = '6px';
+    btnContainer.style.marginLeft = 'auto'; // push to right
+    btnContainer.style.alignItems = 'center';
 
     // Summarize
     const btnSum = createButton('📝', 'Resumir', () => handleAction(postElement, 'summarize', btnSum));
