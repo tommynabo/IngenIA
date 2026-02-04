@@ -1,4 +1,4 @@
-// --- IngenIA Dashboard - Streamlined Version ---
+// --- IngenIA Dashboard - With Comment Reply Support ---
 
 // 1. INJECT STYLES
 const css = `
@@ -22,6 +22,7 @@ const css = `
 .ingenia-title { font-weight: 700; font-size: 14px; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
 .ingenia-status { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444; transition: all 0.3s; }
 .ingenia-status.active { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.ingenia-status.comment { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
 .ingenia-target { font-size: 12px; color: #94a3b8; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ingenia-actions { display: flex; gap: 8px; }
 .ingenia-btn { flex: 1; border: none; border-radius: 6px; padding: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -42,7 +43,9 @@ function injectStyles() {
 // 2. STATE
 let lastClickedElement = null;
 let lastClickedPostContainer = null;
-let linkedInCommentButton = null; // Store the LinkedIn "Comentar" button for later
+let lastClickedCommentContainer = null;
+let lastClickedType = null; // 'post' or 'comment'
+let linkedInCommentButton = null;
 
 // 3. DASHBOARD
 function createDashboard() {
@@ -56,7 +59,7 @@ function createDashboard() {
                 IngenIA Panel
             </div>
         </div>
-        <div class="ingenia-target" id="ingenia-target-text">Haz clic en un post...</div>
+        <div class="ingenia-target" id="ingenia-target-text">Haz clic en un post o comentario...</div>
         <div class="ingenia-actions">
             <button class="ingenia-btn ingenia-btn-secondary" id="btn-summarize">📝 Resumir</button>
             <button class="ingenia-btn ingenia-btn-primary" id="btn-comment">💬 Comentar</button>
@@ -67,32 +70,78 @@ function createDashboard() {
     document.getElementById('btn-comment').onclick = () => runAction('comment');
 }
 
-// 4. CLICK MEMORY - Enhanced to detect LinkedIn's Comentar button
+// 4. CLICK MEMORY - Detects Post vs Comment
 function initClickMemory() {
     document.addEventListener('click', function (e) {
         if (e.target.closest('#ingenia-dashboard') || e.target.closest('#ingenia-modal')) return;
 
         lastClickedElement = e.target;
-        lastClickedPostContainer = findPostContainer(e.target);
 
-        // Check if user clicked LinkedIn's native "Comentar" button 
+        // Check if click was inside a COMMENT first (more specific)
+        const commentContainer = findCommentContainer(e.target);
+
+        if (commentContainer) {
+            lastClickedType = 'comment';
+            lastClickedCommentContainer = commentContainer;
+            lastClickedPostContainer = findPostContainer(e.target); // Also capture parent post
+            console.log("IngenIA: Comment detected!", commentContainer);
+        } else {
+            // Check if it's a post
+            const postContainer = findPostContainer(e.target);
+            if (postContainer) {
+                lastClickedType = 'post';
+                lastClickedPostContainer = postContainer;
+                lastClickedCommentContainer = null;
+                console.log("IngenIA: Post detected!", postContainer);
+            }
+        }
+
+        // Check for LinkedIn button clicks
         const btnText = (e.target.innerText || "").toLowerCase();
-        const ariaLabel = (e.target.getAttribute('aria-label') || "").toLowerCase();
-        const isCommentBtn = btnText.includes('comentar') || btnText.includes('comment') ||
-            ariaLabel.includes('comentar') || ariaLabel.includes('comment');
-
-        if (isCommentBtn) {
-            // Store this button so we can click it later to open the box
+        if (btnText.includes('comentar') || btnText.includes('comment')) {
             linkedInCommentButton = e.target.closest('button') || e.target;
         }
 
-        // Update UI
-        const dot = document.getElementById('ingenia-status-dot');
-        const txt = document.getElementById('ingenia-target-text');
-        if (dot) { dot.classList.add('active'); dot.style.background = '#4ade80'; }
-        if (txt) txt.innerText = lastClickedPostContainer ? "Post capturado ✓" : "Click guardado";
+        // Update Dashboard UI
+        updateDashboardUI();
 
     }, true);
+}
+
+function updateDashboardUI() {
+    const dot = document.getElementById('ingenia-status-dot');
+    const txt = document.getElementById('ingenia-target-text');
+    const btnComment = document.getElementById('btn-comment');
+
+    if (!dot || !txt || !btnComment) return;
+
+    if (lastClickedType === 'comment') {
+        dot.classList.add('active');
+        dot.style.background = '#f59e0b'; // Orange for comment
+        txt.innerText = "💬 Comentario capturado ✓";
+        btnComment.innerHTML = "💬 Responder";
+    } else if (lastClickedType === 'post') {
+        dot.classList.add('active');
+        dot.style.background = '#4ade80'; // Green for post
+        txt.innerText = "📄 Post capturado ✓";
+        btnComment.innerHTML = "💬 Comentar";
+    }
+}
+
+function findCommentContainer(el) {
+    if (!el) return null;
+    let current = el;
+    let levels = 0;
+    while (current && current.tagName !== 'BODY' && levels < 15) {
+        if (current.classList) {
+            if (current.classList.contains('comments-comment-item')) return current;
+            if (current.classList.contains('feed-shared-comment-item')) return current;
+            if (current.tagName === 'ARTICLE' && current.closest('.comments-comments-list')) return current;
+        }
+        current = current.parentElement;
+        levels++;
+    }
+    return null;
 }
 
 function findPostContainer(el) {
@@ -111,9 +160,22 @@ function findPostContainer(el) {
     return null;
 }
 
-// 5. TEXT EXTRACTION
-function extractFullPostText() {
-    if (lastClickedPostContainer) {
+// 5. TEXT EXTRACTION - Handles both Post and Comment
+function extractText() {
+    if (lastClickedType === 'comment' && lastClickedCommentContainer) {
+        // Extract comment text specifically
+        const contentEl = lastClickedCommentContainer.querySelector(
+            '.comments-comment-item__main-content, ' +
+            '.feed-shared-comment-item__comment-content, ' +
+            '.comments-comment-item-content-body'
+        );
+        if (contentEl && contentEl.innerText.length > 10) {
+            return contentEl.innerText;
+        }
+        return lastClickedCommentContainer.innerText;
+    }
+
+    if (lastClickedType === 'post' && lastClickedPostContainer) {
         const textAreas = lastClickedPostContainer.querySelectorAll(
             '.feed-shared-update-v2__description, .update-components-text, .feed-shared-text-view, .feed-shared-inline-show-more-text'
         );
@@ -124,6 +186,8 @@ function extractFullPostText() {
         }
         return lastClickedPostContainer.innerText;
     }
+
+    // Fallback
     if (lastClickedElement) {
         let current = lastClickedElement;
         let levels = 0;
@@ -139,8 +203,8 @@ function extractFullPostText() {
 
 // 6. ACTION
 async function runAction(type) {
-    if (!lastClickedElement && !lastClickedPostContainer) {
-        alert("⚠️ Primero haz clic en cualquier parte del post.");
+    if (!lastClickedElement && !lastClickedPostContainer && !lastClickedCommentContainer) {
+        alert("⚠️ Primero haz clic en un post o comentario.");
         return;
     }
 
@@ -149,9 +213,9 @@ async function runAction(type) {
     btn.innerHTML = '⏳';
     btn.disabled = true;
 
-    let text = extractFullPostText();
-    if (!text || text.length < 20) {
-        alert("No pude extraer texto. Intenta hacer clic en el texto del post.");
+    let text = extractText();
+    if (!text || text.length < 10) {
+        alert("No pude extraer texto suficiente.");
         btn.innerHTML = originalText;
         btn.disabled = false;
         return;
@@ -168,9 +232,23 @@ async function runAction(type) {
         return;
     }
 
-    const prompt = type === 'summarize'
-        ? "Resume esto en español (bullet points): " + text
-        : "Genera un comentario profesional y cercano para este post de LinkedIn: " + text;
+    // DIFFERENT PROMPTS based on context
+    let prompt;
+    let modalTitle;
+
+    if (type === 'summarize') {
+        prompt = "Resume esto en español (bullet points): " + text;
+        modalTitle = "Resumen";
+    } else {
+        // Comment action - different for posts vs comments
+        if (lastClickedType === 'comment') {
+            prompt = "Genera una respuesta breve, amable y profesional para este comentario de LinkedIn. Máximo 2-3 frases: " + text;
+            modalTitle = "Respuesta Sugerida";
+        } else {
+            prompt = "Genera un comentario profesional y cercano para este post de LinkedIn: " + text;
+            modalTitle = "Comentario Sugerido";
+        }
+    }
 
     try {
         const res = await new Promise(resolve => chrome.runtime.sendMessage({
@@ -178,7 +256,7 @@ async function runAction(type) {
         }, resolve));
 
         if (res && res.success) {
-            showModal(type === 'summarize' ? "Resumen" : "Comentario Sugerido", res.result, type);
+            showModal(modalTitle, res.result, type);
         } else {
             alert("Error: " + (res?.error || "Respuesta vacía"));
         }
@@ -202,7 +280,7 @@ function showModal(title, text, actionType) {
     div.innerHTML = `
         <div style="background:#1e293b;width:600px;max-width:90%;padding:25px;border-radius:12px;color:white;font-family:sans-serif;box-shadow:0 25px 50px rgba(0,0,0,0.5);border:1px solid #334155;">
             <h3 style="margin-top:0;font-size:18px;border-bottom:1px solid #334155;padding-bottom:10px;margin-bottom:15px;">${title}</h3>
-            <div id="modal-content" style="background:#0f172a;padding:20px;border-radius:8px;max-height:400px;overflow:auto;white-space:pre-wrap;line-height:1.6;color:#cbd5e1;font-size:15px;">${text}</div>
+            <div style="background:#0f172a;padding:20px;border-radius:8px;max-height:400px;overflow:auto;white-space:pre-wrap;line-height:1.6;color:#cbd5e1;font-size:15px;">${text}</div>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
                 <button id="btn-copy" style="padding:10px 20px;background:#475569;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">📋 Copiar</button>
                 <button id="btn-insert" style="padding:10px 20px;background:#0a66c2;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">✍️ Insertar</button>
@@ -220,71 +298,83 @@ function showModal(title, text, actionType) {
     };
 
     document.getElementById('btn-insert').onclick = () => {
-        insertTextIntoCommentBox(text);
+        insertText(text);
         div.remove();
     };
 
     document.getElementById('btn-close').onclick = () => div.remove();
 }
 
-// --- INSERT INTO COMMENT BOX ---
-function insertTextIntoCommentBox(text) {
-    // Step 1: First, try to OPEN the comment box by clicking LinkedIn's button
-    openLinkedInCommentBox();
+// --- INSERT - Handles both Comment Box and Reply Box ---
+function insertText(text) {
+    // Open the appropriate input first
+    openInputBox();
 
-    // Step 2: Wait a moment for the box to appear, then insert
     setTimeout(() => {
-        let commentBox = findCommentBox();
+        let inputBox = findInputBox();
 
-        if (commentBox) {
-            commentBox.focus();
-
-            // Clear placeholder if any
-            if (commentBox.innerText.trim().length < 5 || commentBox.innerText.includes('Añade un comentario')) {
-                commentBox.innerHTML = '';
+        if (inputBox) {
+            inputBox.focus();
+            if (inputBox.innerText.trim().length < 5 || inputBox.innerText.includes('Añade')) {
+                inputBox.innerHTML = '';
             }
-
-            // Insert
             document.execCommand('insertText', false, text);
-            commentBox.dispatchEvent(new Event('input', { bubbles: true }));
-
+            inputBox.dispatchEvent(new Event('input', { bubbles: true }));
             console.log("IngenIA: Text inserted!");
         } else {
             navigator.clipboard.writeText(text);
-            alert("✅ Texto copiado. Pega con Ctrl+V en la caja de comentarios.");
+            alert("✅ Texto copiado. Pega con Ctrl+V.");
         }
-    }, 500); // Wait 500ms for LinkedIn to open the comment box
+    }, 600);
 }
 
-function openLinkedInCommentBox() {
-    // Try to find and click the "Comentar" button in the current post
-    if (lastClickedPostContainer) {
-        const btns = lastClickedPostContainer.querySelectorAll('button');
+function openInputBox() {
+    // If we're replying to a comment, click "Responder"
+    if (lastClickedType === 'comment' && lastClickedCommentContainer) {
+        const btns = lastClickedCommentContainer.querySelectorAll('button');
         for (let btn of btns) {
             const txt = (btn.innerText || "").toLowerCase();
-            const label = (btn.getAttribute('aria-label') || "").toLowerCase();
-            if (txt.includes('comentar') || txt.includes('comment') || label.includes('comentar') || label.includes('comment')) {
-                console.log("IngenIA: Clicking LinkedIn Comment button");
+            if (txt.includes('responder') || txt.includes('reply')) {
+                console.log("IngenIA: Clicking Reply button");
                 btn.click();
                 return;
             }
         }
     }
 
-    // Fallback: Use stored button
+    // For posts, click "Comentar"
+    if (lastClickedPostContainer) {
+        const btns = lastClickedPostContainer.querySelectorAll('button');
+        for (let btn of btns) {
+            const txt = (btn.innerText || "").toLowerCase();
+            const label = (btn.getAttribute('aria-label') || "").toLowerCase();
+            if (txt.includes('comentar') || txt.includes('comment') || label.includes('comentar')) {
+                console.log("IngenIA: Clicking Comment button");
+                btn.click();
+                return;
+            }
+        }
+    }
+
     if (linkedInCommentButton) {
         linkedInCommentButton.click();
     }
 }
 
-function findCommentBox() {
-    // Search in the current post first
+function findInputBox() {
+    // For comment replies, look inside the comment container first
+    if (lastClickedType === 'comment' && lastClickedCommentContainer) {
+        const replyBox = lastClickedCommentContainer.querySelector('.ql-editor[contenteditable="true"]');
+        if (replyBox && replyBox.offsetParent !== null) return replyBox;
+    }
+
+    // For posts, look in the post container
     if (lastClickedPostContainer) {
         const box = lastClickedPostContainer.querySelector('.ql-editor[contenteditable="true"]');
         if (box && box.offsetParent !== null) return box;
     }
 
-    // Search globally for any visible comment editor
+    // Global search
     const allEditors = document.querySelectorAll('.ql-editor[contenteditable="true"]');
     for (let editor of allEditors) {
         if (editor.offsetParent !== null && editor.getBoundingClientRect().height > 20) {
@@ -292,7 +382,6 @@ function findCommentBox() {
         }
     }
 
-    // Last resort: any contenteditable
     const contentEditables = document.querySelectorAll('[contenteditable="true"]');
     for (let ce of contentEditables) {
         const rect = ce.getBoundingClientRect();
@@ -308,4 +397,4 @@ function findCommentBox() {
 injectStyles();
 createDashboard();
 initClickMemory();
-console.log("IngenIA: Streamlined Version Ready! 🚀");
+console.log("IngenIA: Ready with Comment Reply Support! 🚀");
