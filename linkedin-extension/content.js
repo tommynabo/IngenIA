@@ -140,22 +140,20 @@ function createDashboard() {
 // 4. DETECTION LOGIC ("See More" Click + Scroll fallback)
 
 function initDetectors() {
-    // A. CLICK DETECTOR (High Priority)
-    // Listens for "ver más" clicks to instantly lock onto that post
+    // A. CLICK DETECTOR (Aggressive)
+    // Any click anywhere inside a post sets it as the active target.
     document.addEventListener('click', (e) => {
-        // Check if detected element is a "See More" button or inside one
         const target = e.target;
-        const isSeeMore = target.matches('.feed-shared-inline-show-more-text__see-more-less-toggle') ||
-            target.innerText.toLowerCase().includes('ver más') ||
-            target.innerText.toLowerCase().includes('see more');
 
-        // Also allow clicking the post body itself as a selection signal
+        // Find closest post wrapper
         const post = target.closest('.feed-shared-update-v2, div[data-urn], .occludable-update');
 
-        if (post && (isSeeMore || post.contains(document.activeElement))) {
-            updateDashboardTarget(post, true); // true = forceful click
+        if (post) {
+            // If the user clicked inside a post, MAKE IT ACTIVE IMMEDIATELY
+            console.log("IngenIA clicked post:", post);
+            updateDashboardTarget(post, true);
         }
-    }, true);
+    }, true); // Capture phase to ensure we catch it
 
     // B. SCROLL DETECTOR (Passive background update)
     // Only updates if we don't have a "freshly clicked" post, or simply follows user gaze
