@@ -4,17 +4,20 @@
 .ingenia-feed-row {
     width: 100%;
     padding: 8px 16px;
-    display: flex;
+    display: flex !important;
     justify-content: flex-end;
-    /* Align to right */
+    align-items: center;
     gap: 8px;
     border-top: 1px solid #e0e0e0;
-    /* Separator line */
-    background-color: #f9fafb;
-    /* Slight tint to distinguish */
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    margin-top: 4px;
+    background-color: #f3f6f8;
+    /* Contrast background */
+    margin-top: 8px;
+    z-index: 10;
+    /* Ensure it sits above background layers */
+    position: relative;
+    /* Establish stacking context */
+    min-height: 40px;
+    /* Force height */
 }
 
 /* Ensure buttons in this row look good */
