@@ -28,107 +28,124 @@ observer.observe(OBSERVER_TARGET, { childList: true, subtree: true });
 
 // Initial scan
 scanAndInject();
-showDebugIndicator();
+// Run regularly to handle infinite scroll
+setInterval(scanAndInject, 1000);
 
-function showDebugIndicator() {
-    // Check if exists
-    if (document.getElementById('ingenia-debug')) return;
-
-    const debugDiv = document.createElement('div');
-    debugDiv.id = 'ingenia-debug';
-    debugDiv.innerText = 'Ingenia: Active (Click to Scan)';
-    debugDiv.style.cssText = 'position: fixed; bottom: 10px; left: 10px; background: rgba(0, 255, 0, 0.8); color: black; padding: 5px 10px; z-index: 99999; border-radius: 5px; font-size: 10px; cursor: pointer; border: 1px solid darkgreen;';
-    debugDiv.onclick = () => {
-        scanAndInject();
-        debugDiv.innerText = 'Scanned: ' + new Date().toLocaleTimeString();
-        setTimeout(() => debugDiv.innerText = 'Ingenia: Active (Click to Scan)', 2000);
-    };
-    document.body.appendChild(debugDiv);
-}
+// DEBUG: Force indicator so user knows it loaded
+const dbg = document.createElement('div');
+dbg.innerHTML = "🔴 IngenIA: LOADED";
+dbg.style.cssText = "position:fixed; bottom:0; left:0; background:red; color:white; padding:5px; z-index:999999; font-weight:bold; font-size:12px;";
+document.body.appendChild(dbg);
+setTimeout(() => dbg.remove(), 5000); // Remove after 5s
 
 function scanAndInject() {
-    // 1. Post Buttons (Aggressive)
-    const posts = document.querySelectorAll(POST_SELECTOR);
+    // Buttons for Posts
+    injectPostButtons();
+    // Buttons for Comments
+    injectCommentButtons();
+}
+// --- Logic for Posts (Summarize / Comment) ---
+function injectPostButtons() {
+    // Broaden selector to catch any feed update
+    const posts = document.querySelectorAll('.feed-shared-update-v2, .occludable-update, div[data-urn]');
+
     posts.forEach(post => {
-        if (post.hasAttribute(INJECTED_ATTR)) return;
+        if (post.getAttribute(INJECTED_ATTR) === 'true') return;
 
-        // Try standard insertion points first
-        let targetContainer = post.querySelector(DETAILS_SELECTOR) ||
-            post.querySelector(ACTION_BAR_SELECTOR);
+        // TARGET FINDING STRATEGY
+        // 1. Look for the "likes/comments" count strip
+        let target = post.querySelector('.social-details-social-counts') ||
+            post.querySelector('.feed-shared-social-counts');
 
-        // Fallback: Create a dedicated container at the bottom of the post
-        if (!targetContainer) {
-            // Check if we already created a fallback (prevents duplicates if re-scanning)
-            let existingFallback = post.querySelector('.ingenia-fallback-container');
-            if (existingFallback) {
-                targetContainer = existingFallback;
-            } else {
-                targetContainer = document.createElement('div');
-                targetContainer.className = 'ingenia-fallback-container';
-                targetContainer.style.cssText = 'padding: 8px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; width: 100%;';
-                post.appendChild(targetContainer);
-            }
+        // 2. If missing, look for the action bar (Like, Comment, Share, Send)
+        if (!target) {
+            target = post.querySelector('.feed-shared-social-action-bar') ||
+                post.querySelector('.social-actions-button-bar');
         }
 
-        if (targetContainer) {
-            injectButtons(targetContainer, post);
+        // 3. Last Resort: Any flex container with 'social' in class name at bottom
+        if (!target) {
+            const potential = Array.from(post.querySelectorAll('div[class*="social"]'));
+            target = potential.find(el => el.innerText.includes('Like') || el.innerText.includes('Recomendar') || el.children.length > 2);
+        }
+
+        if (target) {
+            // Create Container
+            const container = document.createElement('div');
+            container.className = 'ingenia-btn-container-small';
+
+            // Button 1: Summarize
+            const btnSum = createButton('📝', 'Resumir', () => handleAction(post, 'summarize', btnSum));
+
+            // Button 2: Comment
+            const btnComment = createButton('⚡️', 'Comentar', () => handleAction(post, 'comment', btnComment));
+
+            container.appendChild(btnSum);
+            container.appendChild(btnComment);
+
+            // Append with style ensures it sits to the right if in flex
+            container.style.marginLeft = 'auto';
+            target.appendChild(container);
+
+            // Mark processed
             post.setAttribute(INJECTED_ATTR, 'true');
         }
     });
+}
 
-    // 2. Reply Buttons (Hybrid: Button Search + Comment Iteration)
+// 2. Reply Buttons (Hybrid: Button Search + Comment Iteration)
 
-    // Strategy A: Find specific buttons (Best native feel)
-    const allButtons = document.querySelectorAll('button, .artdeco-button');
-    allButtons.forEach(btn => {
-        if (btn.dataset.ingeniaHandled) return;
+// Strategy A: Find specific buttons (Best native feel)
+const allButtons = document.querySelectorAll('button, .artdeco-button');
+allButtons.forEach(btn => {
+    if (btn.dataset.ingeniaHandled) return;
 
-        const rawText = btn.innerText || "";
-        const text = rawText.toLowerCase().trim();
-        const label = (btn.getAttribute('aria-label') || "").toLowerCase();
-        const spanText = btn.querySelector('.artdeco-button__text') ? btn.querySelector('.artdeco-button__text').innerText.toLowerCase().trim() : "";
+    const rawText = btn.innerText || "";
+    const text = rawText.toLowerCase().trim();
+    const label = (btn.getAttribute('aria-label') || "").toLowerCase();
+    const spanText = btn.querySelector('.artdeco-button__text') ? btn.querySelector('.artdeco-button__text').innerText.toLowerCase().trim() : "";
 
-        const isReply = text === 'responder' || text === 'reply' ||
-            spanText === 'responder' || spanText === 'reply' ||
-            label.includes('reply to') || label.includes('responder a') ||
-            label === 'responder' || label === 'reply';
+    const isReply = text === 'responder' || text === 'reply' ||
+        spanText === 'responder' || spanText === 'reply' ||
+        label.includes('reply to') || label.includes('responder a') ||
+        label === 'responder' || label === 'reply';
 
-        if (isReply) {
-            const commentItem = btn.closest(COMMENT_SELECTOR) ||
-                btn.closest('.feed-shared-comment-item') ||
-                btn.closest('article');
+    if (isReply) {
+        const commentItem = btn.closest(COMMENT_SELECTOR) ||
+            btn.closest('.feed-shared-comment-item') ||
+            btn.closest('article');
 
-            if (commentItem) {
-                injectReplyButtonDirectly(btn, commentItem);
-                btn.dataset.ingeniaHandled = 'true';
-                // Mark comment as handled too so Strategy B doesn't double up
-                commentItem.setAttribute(INJECTED_ATTR, 'true');
-            }
+        if (commentItem) {
+            injectReplyButtonDirectly(btn, commentItem);
+            btn.dataset.ingeniaHandled = 'true';
+            // Mark comment as handled too so Strategy B doesn't double up
+            commentItem.setAttribute(INJECTED_ATTR, 'true');
         }
-    });
+    }
+});
 
-    // Strategy B: Iterate comments directly (Fallback for missed buttons)
-    const comments = document.querySelectorAll(COMMENT_SELECTOR);
-    comments.forEach(comment => {
-        if (comment.hasAttribute(INJECTED_ATTR)) return;
+// Strategy B: Iterate comments directly (Fallback for missed buttons)
+const comments = document.querySelectorAll(COMMENT_SELECTOR);
+comments.forEach(comment => {
+    if (comment.hasAttribute(INJECTED_ATTR)) return;
 
-        // Try to inject in the meta/header area
-        const metaArea = comment.querySelector('.comments-comment-meta') ||
-            comment.querySelector('.feed-shared-comment-meta') ||
-            comment.querySelector('.comments-comment-item__main-content'); // Worst case fallback to content
+    // Try to inject in the meta/header area
+    const metaArea = comment.querySelector('.comments-comment-meta') ||
+        comment.querySelector('.feed-shared-comment-meta') ||
+        comment.querySelector('.comments-comment-item__main-content'); // Worst case fallback to content
 
-        if (metaArea) {
-            const iaBtn = createButton('✏️', '', () => handleAction(comment, 'reply', iaBtn));
-            iaBtn.className = 'ingenia-btn-mini ingenia-fallback-reply';
-            iaBtn.title = "Generar respuesta (Fallback)";
-            iaBtn.style.marginLeft = "8px";
-            iaBtn.style.verticalAlign = "middle";
+    if (metaArea) {
+        const iaBtn = createButton('✏️', '', () => handleAction(comment, 'reply', iaBtn));
+        iaBtn.className = 'ingenia-btn-mini ingenia-fallback-reply';
+        iaBtn.title = "Generar respuesta (Fallback)";
+        iaBtn.style.marginLeft = "8px";
+        iaBtn.style.verticalAlign = "middle";
 
-            // Append to header/meta
-            metaArea.appendChild(iaBtn);
-            comment.setAttribute(INJECTED_ATTR, 'true');
-        }
-    });
+        // Append to header/meta
+        metaArea.appendChild(iaBtn);
+        comment.setAttribute(INJECTED_ATTR, 'true');
+    }
+});
 }
 
 function injectReplyButtonDirectly(referenceBtn, commentContext) {
